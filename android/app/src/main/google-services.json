@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "518124281170",
+    "project_id": "noti-5e8b7",
+    "storage_bucket": "noti-5e8b7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:518124281170:android:1935441a0047df364dee8b",
+        "android_client_info": {
+          "package_name": "com.example.noti"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4U2FVOIamIu_ssU8E6tG6IkUSnL5HsKM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:518124281170:android:8eddaf60131ea7294dee8b",
+        "android_client_info": {
+          "package_name": "com.example.smart_campus_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4U2FVOIamIu_ssU8E6tG6IkUSnL5HsKM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
