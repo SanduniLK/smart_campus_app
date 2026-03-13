@@ -2,10 +2,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
 
-
-
 class MeshGradientBackground extends StatelessWidget {
-  final Widget? child; // පසුබිමට උඩින් පෙන්විය යුතු content එක
+  final Widget? child;
 
   const MeshGradientBackground({super.key, this.child});
 
@@ -13,78 +11,92 @@ class MeshGradientBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // 1. Base dark background
+        // Base dark background
         Container(color: AppColors.background),
         
-        // 2. Glow Circles (මෘදු ආලෝක රවුම්)
-        // මේවායේ opacity, size සහ position එක වෙනස් කිරීමෙන් 
-        // ඔයාට කැමති Mesh look එකක් හදාගන්න පුළුවන්.
-
         // Purple glow (top left)
         Positioned(
           top: -100,
           left: -100,
-          child: _GlowCircle(
-            color: AppColors.electricPurple.withOpacity(0.3),
-            size: 400,
+          child: Container(
+            width: 300,
+            height: 300,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  AppColors.electricPurple.withValues(alpha: 0.4),
+                  AppColors.electricPurple.withValues(alpha: 0.0),
+                ],
+              ),
+            ),
           ),
         ),
         
-        // Magenta glow (center right)
+        // Magenta glow (center)
         Positioned(
-          top: 300,
-          right: -80,
-          child: _GlowCircle(
-            color: AppColors.softMagenta.withOpacity(0.25),
-            size: 350,
+          top: 200,
+          right: -50,
+          child: Container(
+            width: 280,
+            height: 280,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  AppColors.softMagenta.withValues(alpha: 0.35),
+                  AppColors.softMagenta.withValues(alpha: 0.0),
+                ],
+              ),
+            ),
           ),
         ),
         
-        // Yellow glow (bottom center)
+        // Yellow glow (bottom)
         Positioned(
-          bottom: -150,
+          bottom: -80,
           left: 50,
-          child: _GlowCircle(
-            color: AppColors.vibrantYellow.withOpacity(0.2),
-            size: 300,
-          ),
-        ),
-
-        // 3. ✨ වැදගත්ම කොටස: Global Blur Layer
-        // මේ BackdropFilter එකෙන් තමයි අර glow circles ඔක්කොම 
-        // එකිනෙක ලස්සනට මිශ්‍ර (blend) කරන්නේ.
-        Positioned.fill(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70),
-            child: Container(color: Colors.transparent),
+          child: Container(
+            width: 250,
+            height: 250,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  AppColors.vibrantYellow.withValues(alpha: 0.25),
+                  AppColors.vibrantYellow.withValues(alpha: 0.0),
+                ],
+              ),
+            ),
           ),
         ),
         
-        // 4. Child content (Buttons, Text, etc.)
+        // Blur layers for glass effect
+        Positioned.fill(
+          child: ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+              child: Container(
+                color: AppColors.withOpacity(AppColors.background, 0.3),
+              ),
+            ),
+          ),
+        ),
+        
+        Positioned.fill(
+          child: ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+              child: Container(
+                color: AppColors.withOpacity(AppColors.glassSurface, 0.2),
+              ),
+            ),
+          ),
+        ),
+        
+        // Content
         if (child != null) child!,
       ],
-    );
-  }
-}
-
-// Reusable widget එකක් විදිහට Glow Circle එක වෙන් කළා Code එක පිරිසිදුව තියාගන්න
-class _GlowCircle extends StatelessWidget {
-  final Color color;
-  final double size;
-
-  const _GlowCircle({required this.color, required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [color, color.withOpacity(0)],
-        ),
-      ),
     );
   }
 }

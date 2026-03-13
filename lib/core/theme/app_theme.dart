@@ -78,7 +78,7 @@ class AppTheme {
         ),
       ),
       
-      // Card Theme (fixed CardTheme to CardThemeData)
+      // Card Theme
       cardTheme: CardThemeData(
         color: AppColors.glassSurface,
         elevation: 0,
@@ -127,7 +127,7 @@ class AppTheme {
         ),
         hintStyle: GoogleFonts.poppins(
           fontSize: 14,
-          color: AppColors.textSecondary.withValues(alpha: 0.5), // Fixed withOpacity
+          color: AppColors.textSecondary.withValues(alpha: 0.5),
         ),
         errorStyle: GoogleFonts.poppins(
           fontSize: 12,
@@ -162,7 +162,7 @@ class AppTheme {
         ),
       ),
       
-      // Checkbox Theme (fixed MaterialState to WidgetState)
+      // Checkbox Theme
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
@@ -179,9 +179,9 @@ class AppTheme {
         ),
       ),
       
-      // Divider Theme
+      // Divider Theme - FIXED: Changed from AppColors.background to AppColors.cardBorder
       dividerTheme: const DividerThemeData(
-        color: AppColors.background,
+        color: AppColors.cardBorder, // මෙතන වෙනස් කළා
         thickness: 1,
         space: 1,
       ),

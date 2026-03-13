@@ -2,7 +2,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
 
-
 class GlassCard extends StatelessWidget {
   final Widget child;
   final double borderRadius;
@@ -19,7 +18,7 @@ class GlassCard extends StatelessWidget {
   const GlassCard({
     super.key,
     required this.child,
-    this.borderRadius = 16,
+    this.borderRadius = 24,
     this.blurIntensity = 10,
     this.padding,
     this.margin,
