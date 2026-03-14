@@ -1,7 +1,14 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
+import 'package:smart_campus_app/presentation/screens/events/events_screen.dart';
+import 'package:smart_campus_app/presentation/screens/home/student_dashboard_screen.dart';
+import 'package:smart_campus_app/presentation/screens/profile/profile_screen.dart';
+import 'package:smart_campus_app/presentation/screens/splash/widgets/animated_glass_background.dart';
 import 'package:smart_campus_app/core/services/firebase_service.dart';
+
+import 'package:smart_campus_app/presentation/screens/timetable/timetable_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,254 +18,110 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  Map<String, dynamic>? _userProfile;
+  int _selectedIndex = 0;
   bool _isLoading = true;
+
+  final List<Widget> _screens = [
+    const StudentDashboardScreen(),
+    const TimetableScreen(),
+    const EventsScreen(),
+    const ProfileScreen(),
+  ];
 
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
+    _loadUserData();
   }
 
-  Future<void> _loadUserProfile() async {
-    final profile = await FirebaseService.getCurrentUserProfile();
-    setState(() {
-      _userProfile = profile;
-      _isLoading = false;
-    });
-  }
-
-  Future<void> _handleSignOut() async {
-    await FirebaseService.signOut();
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, '/login');
-    }
+  Future<void> _loadUserData() async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    setState(() => _isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseService.currentUser;
-
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: Text(
-          'Smart Campus',
-          style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Colors.white),
-            onPressed: _handleSignOut,
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          const AnimatedGlassBackground(),
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.2),
+            ),
           ),
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _screens[_selectedIndex],
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // User Info Card
-                  _buildUserInfoCard(),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Role-specific details
-                  if (_userProfile?['role'] == 'student') ...[
-                    _buildSectionTitle('Academic Information'),
-                    const SizedBox(height: 12),
-                    _buildStudentDetails(),
-                  ] else if (_userProfile?['role'] == 'staff') ...[
-                    _buildSectionTitle('Staff Information'),
-                    const SizedBox(height: 12),
-                    _buildStaffDetails(),
-                  ],
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Sessions
-                  _buildSectionTitle('Recent Sessions'),
-                  const SizedBox(height: 12),
-                  _buildSessionsPreview(),
-                ],
-              ),
-            ),
+      bottomNavigationBar: _buildBottomNavBar(),
     );
   }
 
-  Widget _buildUserInfoCard() {
+  Widget _buildBottomNavBar() {
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.electricPurple, AppColors.softMagenta],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 60,
-            height: 60,
+      margin: const EdgeInsets.all(16),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          child: Container(
+            height: 70,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                _userProfile?['fullName']?[0].toUpperCase() ?? 'U',
-                style: const TextStyle(fontSize: 30, color: Colors.white, fontWeight: FontWeight.bold),
+              color: Colors.black.withValues(alpha: 0.3),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.15),
+                width: 1.5,
               ),
+              borderRadius: BorderRadius.circular(30),
             ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Text(
-                  _userProfile?['fullName'] ?? 'User',
-                  style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _userProfile?['email'] ?? '',
-                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.white.withOpacity(0.8)),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        _userProfile?['role']?.toUpperCase() ?? 'USER',
-                        style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.white),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: _userProfile?['isEmailVerified'] == 1
-                            ? Colors.green.withOpacity(0.2)
-                            : Colors.red.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        _userProfile?['isEmailVerified'] == 1 ? 'Verified' : 'Not Verified',
-                        style: GoogleFonts.poppins(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: _userProfile?['isEmailVerified'] == 1 ? Colors.green : Colors.red,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                _buildNavItem(Icons.home_rounded, 'Home', 0),
+                _buildNavItem(Icons.calendar_month_rounded, 'Schedule', 1),
+                _buildNavItem(Icons.event_rounded, 'Events', 2),
+                _buildNavItem(Icons.person_rounded, 'Profile', 3),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
-    );
-  }
-
-  Widget _buildStudentDetails() {
-    final details = _userProfile?['details'] ?? {};
-    
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.glassSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
-      ),
-      child: Column(
-        children: [
-          _buildInfoRow('Index Number', details['indexNumber']),
-          _buildInfoRow('Campus ID', details['campusId']),
-          _buildInfoRow('NIC', details['nic']),
-          _buildInfoRow('Phone', details['phone']),
-          _buildInfoRow('Date of Birth', details['dob']),
-          _buildInfoRow('Department', details['department']),
-          _buildInfoRow('Degree', details['degree']),
-          _buildInfoRow('Intake', details['intake']),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStaffDetails() {
-    final details = _userProfile?['details'] ?? {};
-    
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.glassSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
-      ),
-      child: Column(
-        children: [
-          _buildInfoRow('Staff ID', details['staffId']),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String? value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
+  Widget _buildNavItem(IconData icon, String label, int index) {
+    final isSelected = _selectedIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedIndex = index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.electricPurple.withValues(alpha: 0.2)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? AppColors.electricPurple : Colors.white70,
+              size: 24,
+            ),
+            const SizedBox(height: 2),
+            Text(
               label,
-              style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary),
+              style: GoogleFonts.poppins(
+                fontSize: 10,
+                color: isSelected ? AppColors.electricPurple : Colors.white70,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
             ),
-          ),
-          Expanded(
-            child: Text(
-              value ?? 'N/A',
-              style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSessionsPreview() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.glassSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
-      ),
-      child: Center(
-        child: Text(
-          'Session history will appear here',
-          style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary),
+          ],
         ),
       ),
     );
