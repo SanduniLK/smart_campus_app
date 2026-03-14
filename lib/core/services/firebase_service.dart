@@ -172,15 +172,19 @@ class FirebaseService {
 
   // Send Email Verification
   static Future<void> sendEmailVerification() async {
-    try {
-      User? user = _auth.currentUser;
-      if (user != null && !user.emailVerified) {
-        await user.sendEmailVerification();
-      }
-    } catch (e) {
-      throw 'Failed to send verification email: $e';
+  try {
+    User? user = _auth.currentUser;
+    if (user != null && !user.emailVerified) {
+      await user.sendEmailVerification();
+      print('✅ Verification email sent to: ${user.email}');
+    } else {
+      print('❌ User is null or already verified');
     }
+  } catch (e) {
+    print('❌ Failed to send verification email: $e');
+    throw 'Failed to send verification email: $e';
   }
+}
 
   // Check email verification status and update local DB
   static Future<bool> checkEmailVerified() async {

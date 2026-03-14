@@ -2,8 +2,11 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
+import 'package:smart_campus_app/core/services/firebase_service.dart';
 import 'package:smart_campus_app/presentation/screens/splash/widgets/animated_glass_background.dart';
+import 'package:smart_campus_app/presentation/widgets/glass_dropdown.dart';
 import 'package:smart_campus_app/presentation/widgets/email_verification_dialog.dart';
+import 'package:smart_campus_app/presentation/widgets/glass_text_field.dart';
 
 class StudentSignUpScreen extends StatefulWidget {
   const StudentSignUpScreen({super.key});
@@ -14,29 +17,21 @@ class StudentSignUpScreen extends StatefulWidget {
 
 class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
   final _formKey = GlobalKey<FormState>();
-  
-  // Page Controller for steps
   final PageController _pageController = PageController();
+  
   int _currentStep = 0;
   final int _totalSteps = 3;
   
-  // Controllers for Step 1 - Basic Info
+  // Controllers
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
-  // Controllers for Step 2 - Academic Info
   final _indexNumberController = TextEditingController();
   final _campusIdController = TextEditingController();
   final _nicController = TextEditingController();
   final _phoneController = TextEditingController();
   final _dobController = TextEditingController();
-  
-  // Controllers for Step 3 - Program Details
-  String? _selectedDepartment;
-  String? _selectedDegree;
-  String? _selectedIntake;
   
   // Focus Nodes
   final _fullNameFocusNode = FocusNode();
@@ -44,14 +39,16 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
   final _passwordFocusNode = FocusNode();
   final _confirmPasswordFocusNode = FocusNode();
   
-  // State
+  String? _selectedDepartment;
+  String? _selectedDegree;
+  String? _selectedIntake;
+  
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _agreeToTerms = false;
   bool _isLoading = false;
-  
-  // Dropdown Data
-  final List<String> departments = [
+
+  final List<String> _departments = [
     'Department of ICT',
     'Department of Engineering',
     'Department of Mathematics',
@@ -59,7 +56,7 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
     'Department of Chemistry',
   ];
   
-  final Map<String, List<String>> degreesByDepartment = {
+  final Map<String, List<String>> _degreesByDepartment = {
     'Department of ICT': ['BSc in Computer Science', 'BSc in Information Systems', 'BSc in Software Engineering'],
     'Department of Engineering': ['BSc in Electrical Engineering', 'BSc in Mechanical Engineering', 'BSc in Civil Engineering'],
     'Department of Mathematics': ['BSc in Mathematics', 'BSc in Statistics', 'BSc in Applied Mathematics'],
@@ -67,7 +64,7 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
     'Department of Chemistry': ['BSc in Chemistry', 'BSc in Industrial Chemistry'],
   };
   
-  final List<String> intakes = ['2022/2023', '2023/2024', '2024/2025', '2025/2026'];
+  final List<String> _intakes = ['2022/2023', '2023/2024', '2024/2025', '2025/2026'];
 
   @override
   void dispose() {
@@ -140,15 +137,35 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
   }
 
   void _nextPage() {
-    if (_currentStep == 0 && _validateStep1()) {
+    bool isValid = false;
+    
+    if (_currentStep == 0) {
+      isValid = _fullNameController.text.isNotEmpty &&
+                _emailController.text.isNotEmpty &&
+                _passwordController.text.isNotEmpty &&
+                _confirmPasswordController.text.isNotEmpty &&
+                _passwordController.text == _confirmPasswordController.text &&
+                _agreeToTerms;
+    } else if (_currentStep == 1) {
+      isValid = _indexNumberController.text.isNotEmpty &&
+                _campusIdController.text.isNotEmpty &&
+                _nicController.text.isNotEmpty &&
+                _phoneController.text.isNotEmpty &&
+                _dobController.text.isNotEmpty;
+    }
+
+    if (isValid) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
-    } else if (_currentStep == 1 && _validateStep2()) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill all required fields'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
@@ -160,167 +177,91 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
     );
   }
 
-  bool _validateStep1() {
-    return _fullNameController.text.isNotEmpty &&
-           _emailController.text.isNotEmpty &&
-           _passwordController.text.isNotEmpty &&
-           _confirmPasswordController.text.isNotEmpty &&
-           _passwordController.text == _confirmPasswordController.text &&
-           _agreeToTerms;
-  }
-
-  bool _validateStep2() {
-    return _indexNumberController.text.isNotEmpty &&
-           _campusIdController.text.isNotEmpty &&
-           _nicController.text.isNotEmpty &&
-           _phoneController.text.isNotEmpty &&
-           _dobController.text.isNotEmpty;
-  }
-
-  void _completeSignUp() {
-  // Safe null check
-  if (_formKey.currentState == null) {
-    print('Form state is null');
-    return;
-  }
-  
-  if (_formKey.currentState!.validate()) {
-    // Validate all required fields
-    if (_selectedDepartment != null && 
-        _selectedDegree != null && 
-        _selectedIntake != null) {
-      
-      // Show loading
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(AppColors.electricPurple),
-          ),
-        ),
-      );
-
-      // Simulate profile completion
-      Future.delayed(const Duration(seconds: 1), () {
-        if (mounted) {
-          Navigator.pop(context); // Close loading
-          
-          // Show email verification dialog
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => EmailVerificationDialog(
-              email: _emailController.text.trim(),
-              userRole: 'student',
-              userData: {
-                'indexNumber': _indexNumberController.text.trim(),
-                'campusId': _campusIdController.text.trim(),
-                'nic': _nicController.text.trim(),
-                'phone': _phoneController.text.trim(),
-                'dob': _dobController.text.trim(),
-                'department': _selectedDepartment,
-                'degree': _selectedDegree,
-                'intake': _selectedIntake,
-              },
-            ),
-          );
-        }
-      });
-    } else {
-      // Show error if program details not selected
+  Future<void> _completeSignUp() async {
+    if (_formKey.currentState == null) return;
+    
+    if (_selectedDepartment == null || _selectedDegree == null || _selectedIntake == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Please complete all program details',
-            style: GoogleFonts.poppins(),
-          ),
+        const SnackBar(
+          content: Text('Please select department, degree and intake'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ),
       );
+      return;
+    }
+    
+    setState(() => _isLoading = true);
+
+    try {
+      print('📧 Creating user with email: ${_emailController.text}');
+      
+      final user = await FirebaseService.signUpStudent(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        fullName: _fullNameController.text.trim(),
+        indexNumber: _indexNumberController.text.trim(),
+        campusId: _campusIdController.text.trim(),
+        nic: _nicController.text.trim(),
+        phone: _phoneController.text.trim(),
+        dob: _dobController.text.trim(),
+        department: _selectedDepartment!,
+        degree: _selectedDegree!,
+        intake: _selectedIntake!,
+      );
+      
+      setState(() => _isLoading = false);
+      
+      if (user != null && mounted) {
+        print('✅ User created successfully: ${user.email}');
+        print('📧 Verification email sent to: ${user.email}');
+        
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => EmailVerificationDialog(
+            email: _emailController.text.trim(),
+            userRole: 'student',
+            userData: {
+              'fullName': _fullNameController.text.trim(),
+              'indexNumber': _indexNumberController.text.trim(),
+              'campusId': _campusIdController.text.trim(),
+              'nic': _nicController.text.trim(),
+              'phone': _phoneController.text.trim(),
+              'dob': _dobController.text.trim(),
+              'department': _selectedDepartment,
+              'degree': _selectedDegree,
+              'intake': _selectedIntake,
+            },
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      print('❌ Error creating user: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
-}
 
-  void _showSuccessDialog() {
-    showDialog(
+  Future<void> _selectDate() async {
+    DateTime? picked = await showDatePicker(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Center(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-              child: Container(
-                width: 300,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AppColors.electricPurple, AppColors.softMagenta],
-                        ),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.check_rounded, color: Colors.white, size: 40),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Profile Created!',
-                      style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Your student profile has been created successfully.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(fontSize: 14, color: Colors.white.withOpacity(0.8)),
-                    ),
-                    const SizedBox(height: 20),
-                    Container(
-                      width: double.infinity,
-                      height: 45,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AppColors.electricPurple, AppColors.softMagenta],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          Navigator.pushReplacementNamed(context, '/login');
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: Text(
-                          'Go to Login',
-                          style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+      initialDate: DateTime.now().subtract(const Duration(days: 6570)),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
     );
+    if (picked != null) {
+      setState(() => _dobController.text = "${picked.day}/${picked.month}/${picked.year}");
+    }
   }
 
   @override
@@ -330,50 +271,35 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
       body: Stack(
         children: [
           const AnimatedGlassBackground(),
-          Positioned.fill(child: Container(color: Colors.black.withOpacity(0.2))),
+          
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.3),
+            ),
+          ),
           
           SafeArea(
             child: Column(
               children: [
-                // Top Bar with Back and Progress
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Row(
-                    children: [
-                      _buildBackButton(),
-                      const SizedBox(width: 16),
-                      Expanded(child: _buildProgressBar()),
-                    ],
-                  ),
-                ),
+                _buildAppBar(),
+                _buildHeader(),
                 
-                // Header
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: _buildHeader(),
-                ),
-                
-                // PageView for Steps
                 Expanded(
-                  child: PageView(
-                    controller: _pageController,
-                    physics: const NeverScrollableScrollPhysics(),
-                    onPageChanged: (index) {
-                      setState(() => _currentStep = index);
-                    },
-                    children: [
-                      _buildStep1(),
-                      _buildStep2(),
-                      _buildStep3(),
-                    ],
+                  child: Form(
+                    key: _formKey,
+                    child: PageView(
+                      controller: _pageController,
+                      physics: const NeverScrollableScrollPhysics(),
+                      onPageChanged: (index) => setState(() => _currentStep = index),
+                      children: [
+                        _buildStep1(),
+                        _buildStep2(),
+                        _buildStep3(),
+                      ],
+                    ),
                   ),
                 ),
-                
-                // Navigation Buttons
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: _buildNavigationButtons(),
-                ),
+                _buildNavigationButtons(),
               ],
             ),
           ),
@@ -384,229 +310,187 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
     );
   }
 
-  Widget _buildBackButton() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.3),
-            border: Border.all(color: Colors.white.withOpacity(0.15), width: 1.5),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: IconButton(
-            onPressed: _currentStep > 0 ? _previousPage : () => Navigator.pop(context),
-            icon: Icon(
-              _currentStep > 0 ? Icons.arrow_back_ios_new_rounded : Icons.close_rounded,
-              color: Colors.white,
-              size: 20,
+  Widget _buildAppBar() {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
             ),
-            padding: EdgeInsets.zero,
-            splashRadius: 24,
+            child: IconButton(
+              onPressed: _currentStep > 0 
+                ? _previousPage 
+                : () => Navigator.pop(context),
+              icon: Icon(
+                _currentStep > 0 ? Icons.arrow_back_ios_new : Icons.close,
+                color: Colors.white,
+              ),
+            ),
           ),
-        ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Step ${_currentStep + 1}/$_totalSteps',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                LinearProgressIndicator(
+                  value: (_currentStep + 1) / _totalSteps,
+                  backgroundColor: Colors.white24,
+                  color: AppColors.electricPurple,
+                  minHeight: 6,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildProgressBar() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Step $_currentStep of $_totalSteps',
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: Colors.white.withOpacity(0.7),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            Text(
-              '${(_currentStep / _totalSteps * 100).toInt()}%',
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: AppColors.electricPurple,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: LinearProgressIndicator(
-            value: (_currentStep + 1) / _totalSteps,
-            backgroundColor: Colors.white.withOpacity(0.1),
-            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.electricPurple),
-            minHeight: 8,
-          ),
-        ),
-      ],
     );
   }
 
   Widget _buildHeader() {
     String title = '';
-    String subtitle = '';
-    
     switch (_currentStep) {
-      case 0:
-        title = 'Basic Information';
-        subtitle = 'Create your account credentials';
-        break;
-      case 1:
-        title = 'Academic Details';
-        subtitle = 'Tell us about your student info';
-        break;
-      case 2:
-        title = 'Program Selection';
-        subtitle = 'Choose your department and degree';
-        break;
+      case 0: title = 'Basic Information'; break;
+      case 1: title = 'Academic Details'; break;
+      case 2: title = 'Program Selection'; break;
     }
     
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: GoogleFonts.poppins(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            shadows: const [Shadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 2))],
-          ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Text(
+        title,
+        style: GoogleFonts.poppins(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
         ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            color: Colors.white.withOpacity(0.8),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
   Widget _buildStep1() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            _buildGlassTextField(
-              controller: _fullNameController,
-              focusNode: _fullNameFocusNode,
-              label: 'Full Name',
-              icon: Icons.person_outline_rounded,
-              validator: _validateFullName,
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 16),
-            _buildGlassTextField(
-              controller: _emailController,
-              focusNode: _emailFocusNode,
-              label: 'Email',
-              icon: Icons.email_outlined,
-              validator: _validateEmail,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 16),
-            _buildGlassTextField(
-              controller: _passwordController,
-              focusNode: _passwordFocusNode,
-              label: 'Password',
-              icon: Icons.lock_outline_rounded,
-              validator: _validatePassword,
-              obscureText: _obscurePassword,
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                  color: Colors.white.withOpacity(0.9),
-                  size: 20,
-                ),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                splashRadius: 20,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          GlassTextField(
+            controller: _fullNameController,
+            focusNode: _fullNameFocusNode,
+            label: 'Full Name',
+            icon: Icons.person_outline_rounded,
+            validator: _validateFullName,
+          ),
+          const SizedBox(height: 16),
+          GlassTextField(
+            controller: _emailController,
+            focusNode: _emailFocusNode,
+            label: 'Email',
+            icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+            validator: _validateEmail,
+          ),
+          const SizedBox(height: 16),
+          GlassTextField(
+            controller: _passwordController,
+            focusNode: _passwordFocusNode,
+            label: 'Password',
+            icon: Icons.lock_outline_rounded,
+            obscureText: _obscurePassword,
+            validator: _validatePassword,
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                color: Colors.white70,
               ),
-              textInputAction: TextInputAction.next,
+              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
             ),
-            const SizedBox(height: 16),
-            _buildGlassTextField(
-              controller: _confirmPasswordController,
-              focusNode: _confirmPasswordFocusNode,
-              label: 'Confirm Password',
-              icon: Icons.lock_outline_rounded,
-              validator: _validateConfirmPassword,
-              obscureText: _obscureConfirmPassword,
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscureConfirmPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                  color: Colors.white.withOpacity(0.9),
-                  size: 20,
-                ),
-                onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-                splashRadius: 20,
+          ),
+          const SizedBox(height: 16),
+          GlassTextField(
+            controller: _confirmPasswordController,
+            focusNode: _confirmPasswordFocusNode,
+            label: 'Confirm Password',
+            icon: Icons.lock_outline_rounded,
+            obscureText: _obscureConfirmPassword,
+            validator: _validateConfirmPassword,
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                color: Colors.white70,
               ),
-              textInputAction: TextInputAction.done,
+              onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
             ),
-            const SizedBox(height: 20),
-            _buildTermsCheckbox(),
-          ],
-        ),
+          ),
+          const SizedBox(height: 20),
+          CheckboxListTile(
+            value: _agreeToTerms,
+            onChanged: (val) => setState(() => _agreeToTerms = val ?? false),
+            title: Text(
+              'I agree to Terms & Conditions',
+              style: GoogleFonts.poppins(fontSize: 12, color: Colors.white70),
+            ),
+            controlAffinity: ListTileControlAffinity.leading,
+            checkboxShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            activeColor: AppColors.electricPurple,
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildStep2() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          _buildGlassTextField(
+          GlassTextField(
             controller: _indexNumberController,
             label: 'Index Number',
-            icon: Icons.numbers_rounded,
+            icon: Icons.numbers,
             validator: _validateIndexNumber,
-            keyboardType: TextInputType.number,
           ),
           const SizedBox(height: 16),
-          _buildGlassTextField(
+          GlassTextField(
             controller: _campusIdController,
             label: 'Campus ID',
-            icon: Icons.badge_rounded,
+            icon: Icons.badge,
             validator: _validateCampusId,
           ),
           const SizedBox(height: 16),
-          _buildGlassTextField(
+          GlassTextField(
             controller: _nicController,
             label: 'NIC',
-            icon: Icons.credit_card_rounded,
+            icon: Icons.credit_card,
             validator: _validateNIC,
           ),
           const SizedBox(height: 16),
-          _buildGlassTextField(
+          GlassTextField(
             controller: _phoneController,
             label: 'Phone Number',
-            icon: Icons.phone_rounded,
-            validator: _validatePhone,
+            icon: Icons.phone,
             keyboardType: TextInputType.phone,
+            validator: _validatePhone,
           ),
           const SizedBox(height: 16),
-          _buildGlassTextField(
+          GlassTextField(
             controller: _dobController,
-            label: 'Date of Birth (DD/MM/YYYY)',
-            icon: Icons.cake_rounded,
-            validator: _validateDOB,
+            label: 'Date of Birth',
+            icon: Icons.cake,
             readOnly: true,
-            onTap: () => _selectDate(),
+            onTap: _selectDate,
+            validator: _validateDOB,
           ),
         ],
       ),
@@ -615,225 +499,100 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
 
   Widget _buildStep3() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          _buildGlassDropdown(
+          GlassDropdown(
             value: _selectedDepartment,
-            items: departments,
+            items: _departments,
             label: 'Department',
-            icon: Icons.school_rounded,
-            onChanged: (value) {
-              setState(() {
-                _selectedDepartment = value;
-                _selectedDegree = null;
-              });
-            },
+            icon: Icons.school,
+            onChanged: (val) => setState(() { 
+              _selectedDepartment = val; 
+              _selectedDegree = null; 
+            }),
           ),
           const SizedBox(height: 16),
-          _buildGlassDropdown(
-            value: _selectedDegree,
-            items: _selectedDepartment != null 
-                ? degreesByDepartment[_selectedDepartment] ?? [] 
-                : [],
-            label: 'Degree Program',
-            icon: Icons.menu_book_rounded,
-            onChanged: _selectedDepartment != null
-                ? (value) => setState(() => _selectedDegree = value)
-                : null,
-          ),
-          const SizedBox(height: 16),
-          _buildGlassDropdown(
+          if (_selectedDepartment != null)
+            GlassDropdown(
+              value: _selectedDegree,
+              items: _degreesByDepartment[_selectedDepartment] ?? [],
+              label: 'Degree Program',
+              icon: Icons.book,
+              onChanged: (val) => setState(() => _selectedDegree = val),
+            ),
+          if (_selectedDepartment != null) const SizedBox(height: 16),
+          GlassDropdown(
             value: _selectedIntake,
-            items: intakes,
+            items: _intakes,
             label: 'Intake',
-            icon: Icons.calendar_today_rounded,
-            onChanged: (value) => setState(() => _selectedIntake = value),
+            icon: Icons.calendar_month,
+            onChanged: (val) => setState(() => _selectedIntake = val),
+          ),
+          const SizedBox(height: 30),
+          Container(
+            width: double.infinity,
+            height: 55,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [AppColors.electricPurple, AppColors.softMagenta],
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: ElevatedButton(
+              onPressed: _completeSignUp,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: Text(
+                'Complete Registration',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildGlassTextField({
-    required TextEditingController controller,
-    FocusNode? focusNode,
-    required String label,
-    required IconData icon,
-    String? Function(String?)? validator,
-    TextInputType? keyboardType,
-    TextInputAction? textInputAction,
-    bool obscureText = false,
-    Widget? suffixIcon,
-    bool readOnly = false,
-    VoidCallback? onTap,
-  }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.3),
-            border: Border.all(color: Colors.white.withOpacity(0.15), width: 1.5),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: TextFormField(
-            controller: controller,
-            focusNode: focusNode,
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
-            cursorColor: AppColors.electricPurple,
-            obscureText: obscureText,
-            keyboardType: keyboardType,
-            textInputAction: textInputAction,
-            readOnly: readOnly,
-            onTap: onTap,
-            validator: validator,
-            decoration: InputDecoration(
-              labelText: label,
-              labelStyle: GoogleFonts.poppins(color: Colors.white.withOpacity(0.8), fontSize: 14),
-              floatingLabelStyle: GoogleFonts.poppins(color: Colors.white, fontSize: 12),
-              prefixIcon: Icon(icon, color: Colors.white.withOpacity(0.8), size: 20),
-              suffixIcon: suffixIcon,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGlassDropdown({
-    required String? value,
-    required List<String> items,
-    required String label,
-    required IconData icon,
-    required void Function(String?)? onChanged,
-  }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.3),
-            border: Border.all(color: Colors.white.withOpacity(0.15), width: 1.5),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: DropdownButtonFormField<String>(
-            value: value,
-            items: items.map((item) {
-              return DropdownMenuItem(
-                value: item,
-                child: Text(
-                  item,
-                  style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
-                ),
-              );
-            }).toList(),
-            onChanged: onChanged,
-            dropdownColor: Colors.black.withOpacity(0.8),
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
-            icon: Icon(Icons.arrow_drop_down_rounded, color: Colors.white.withOpacity(0.8)),
-            decoration: InputDecoration(
-              labelText: label,
-              labelStyle: GoogleFonts.poppins(color: Colors.white.withOpacity(0.8), fontSize: 14),
-              floatingLabelStyle: GoogleFonts.poppins(color: Colors.white, fontSize: 12),
-              prefixIcon: Icon(icon, color: Colors.white.withOpacity(0.8), size: 20),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTermsCheckbox() {
-    return Row(
-      children: [
-        SizedBox(
-          height: 20,
-          width: 20,
-          child: Checkbox(
-            value: _agreeToTerms,
-            onChanged: (value) => setState(() => _agreeToTerms = value ?? false),
-            fillColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.selected)) return AppColors.electricPurple;
-              return Colors.transparent;
-            }),
-            checkColor: Colors.white,
-            side: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            'I agree to the Terms & Conditions and Privacy Policy',
-            style: GoogleFonts.poppins(fontSize: 12, color: Colors.white.withOpacity(0.8)),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildNavigationButtons() {
-    return Row(
-      children: [
-        if (_currentStep > 0)
-          Expanded(
-            child: _buildGlassButton(
-              text: 'Back',
-              onPressed: _previousPage,
-              isPrimary: false,
+    if (_currentStep >= 2) return const SizedBox.shrink();
+    
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Container(
+        width: double.infinity,
+        height: 55,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [AppColors.electricPurple, AppColors.softMagenta],
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: ElevatedButton(
+          onPressed: _nextPage,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
           ),
-        if (_currentStep > 0) const SizedBox(width: 16),
-        Expanded(
-          child: _buildGlassButton(
-            text: _currentStep == _totalSteps - 1 ? 'Complete' : 'Next',
-            onPressed: _currentStep == _totalSteps - 1 ? _completeSignUp : _nextPage,
-            isPrimary: true,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGlassButton({
-    required String text,
-    required VoidCallback onPressed,
-    required bool isPrimary,
-  }) {
-    return Container(
-      height: 50,
-      decoration: BoxDecoration(
-        gradient: isPrimary
-            ? const LinearGradient(
-                colors: [AppColors.electricPurple, AppColors.softMagenta],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              )
-            : null,
-        color: isPrimary ? null : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        border: isPrimary ? null : Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
-      ),
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        child: Text(
-          text,
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: isPrimary ? Colors.white : Colors.white.withOpacity(0.9),
+          child: Text(
+            'Next',
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
           ),
         ),
       ),
@@ -841,62 +600,24 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
   }
 
   Widget _buildLoadingOverlay() {
-    return Positioned.fill(
-      child: Container(
-        color: Colors.black.withOpacity(0.5),
-        child: Center(
-          child: ClipRRect(
+    return Container(
+      color: Colors.black54,
+      child: Center(
+        child: Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(20),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: Container(
-                width: 100,
-                height: 100,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Center(
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.electricPurple),
-                    strokeWidth: 3,
-                  ),
-                ),
-              ),
+            border: Border.all(color: Colors.white24),
+          ),
+          child: const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.electricPurple),
             ),
           ),
         ),
       ),
     );
-  }
-
-  Future<void> _selectDate() async {
-    DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.electricPurple,
-              onPrimary: Colors.white,
-              surface: Color(0xFF1F222B),
-              onSurface: Colors.white,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-    
-    if (picked != null) {
-      setState(() {
-        _dobController.text = "${picked.day}/${picked.month}/${picked.year}";
-      });
-    }
   }
 }

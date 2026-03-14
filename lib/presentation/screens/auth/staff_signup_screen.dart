@@ -81,13 +81,13 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
     return null;
   }
 
-  // This method handles the signup and shows email verification dialog
+ 
 Future<void> _handleSignUp() async {
   if (_formKey.currentState!.validate() && _agreeToTerms) {
     setState(() => _isLoading = true);
     
     try {
-      // Create user in Firebase
+      
       final user = await FirebaseService.signUpStaff(
         email: _emailController.text.trim(),
         password: _passwordController.text,
@@ -98,7 +98,7 @@ Future<void> _handleSignUp() async {
       setState(() => _isLoading = false);
       
       if (user != null && mounted) {
-        // Show email verification dialog
+        
         showDialog(
           context: context,
           barrierDismissible: false,
