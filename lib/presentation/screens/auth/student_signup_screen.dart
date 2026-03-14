@@ -178,7 +178,13 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
   }
 
   void _completeSignUp() {
-    if (_formKey.currentState!.validate()) {
+  // Safe null check
+  if (_formKey.currentState == null) {
+    print('Form state is null');
+    return;
+  }
+  
+  if (_formKey.currentState!.validate()) {
     // Validate all required fields
     if (_selectedDepartment != null && 
         _selectedDegree != null && 
@@ -197,17 +203,29 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
 
       // Simulate profile completion
       Future.delayed(const Duration(seconds: 1), () {
-        Navigator.pop(context); // Close loading
-        
-        // Show email verification dialog
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => EmailVerificationDialog(
-            email: _emailController.text.trim(),
-            userRole: 'student',
-          ),
-        );
+        if (mounted) {
+          Navigator.pop(context); // Close loading
+          
+          // Show email verification dialog
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => EmailVerificationDialog(
+              email: _emailController.text.trim(),
+              userRole: 'student',
+              userData: {
+                'indexNumber': _indexNumberController.text.trim(),
+                'campusId': _campusIdController.text.trim(),
+                'nic': _nicController.text.trim(),
+                'phone': _phoneController.text.trim(),
+                'dob': _dobController.text.trim(),
+                'department': _selectedDepartment,
+                'degree': _selectedDegree,
+                'intake': _selectedIntake,
+              },
+            ),
+          );
+        }
       });
     } else {
       // Show error if program details not selected
@@ -223,7 +241,7 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
       );
     }
   }
-  }
+}
 
   void _showSuccessDialog() {
     showDialog(
