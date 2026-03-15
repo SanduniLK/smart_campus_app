@@ -5,7 +5,7 @@ import 'package:smart_campus_app/core/constants/app_colors.dart';
 import 'package:smart_campus_app/presentation/screens/events/events_screen.dart';
 import 'package:smart_campus_app/presentation/screens/home/student_dashboard_screen.dart';
 import 'package:smart_campus_app/presentation/screens/profile/profile_screen.dart';
-import 'package:smart_campus_app/presentation/screens/splash/widgets/animated_glass_background.dart';
+import 'package:smart_campus_app/presentation/widgets/splash_screen/animated_glass_background.dart';
 import 'package:smart_campus_app/core/services/firebase_service.dart';
 
 import 'package:smart_campus_app/presentation/screens/timetable/timetable_screen.dart';

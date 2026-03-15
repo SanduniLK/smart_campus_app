@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
 import 'package:smart_campus_app/core/services/firebase_service.dart';
-import 'package:smart_campus_app/presentation/screens/splash/widgets/animated_glass_background.dart';
+import 'package:smart_campus_app/presentation/widgets/splash_screen/animated_glass_background.dart';
 import 'package:smart_campus_app/presentation/widgets/email_verification_dialog.dart';
 
 class StaffSignUpScreen extends StatefulWidget {

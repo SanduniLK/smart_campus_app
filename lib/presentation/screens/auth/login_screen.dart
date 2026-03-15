@@ -2,7 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
-import 'package:smart_campus_app/presentation/screens/splash/widgets/animated_glass_background.dart';
+import 'package:smart_campus_app/presentation/widgets/splash_screen/animated_glass_background.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:smart_campus_app/presentation/screens/splash/widgets/mesh_painter.dart';
+import 'package:smart_campus_app/presentation/widgets/splash_screen/mesh_painter.dart';
 
 
 class MeshBackground extends StatelessWidget {
