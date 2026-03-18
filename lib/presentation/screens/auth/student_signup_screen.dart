@@ -1,12 +1,12 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
+
 import 'package:smart_campus_app/core/services/firebase_service.dart';
-import 'package:smart_campus_app/presentation/widgets/splash_screen/animated_glass_background.dart';
 import 'package:smart_campus_app/presentation/widgets/glass_dropdown.dart';
 import 'package:smart_campus_app/presentation/widgets/email_verification_dialog.dart';
 import 'package:smart_campus_app/presentation/widgets/glass_text_field.dart';
+import 'package:smart_campus_app/presentation/widgets/splash_screen/animated_glass_background.dart';
 
 class StudentSignUpScreen extends StatefulWidget {
   const StudentSignUpScreen({super.key});
@@ -22,7 +22,6 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
   int _currentStep = 0;
   final int _totalSteps = 3;
   
-  // Controllers
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -33,7 +32,6 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
   final _phoneController = TextEditingController();
   final _dobController = TextEditingController();
   
-  // Focus Nodes
   final _fullNameFocusNode = FocusNode();
   final _emailFocusNode = FocusNode();
   final _passwordFocusNode = FocusNode();
@@ -47,6 +45,8 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
   bool _obscureConfirmPassword = true;
   bool _agreeToTerms = false;
   bool _isLoading = false;
+
+  late final FirebaseService _firebaseService;
 
   final List<String> _departments = [
     'Department of ICT',
@@ -67,6 +67,12 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
   final List<String> _intakes = ['2022/2023', '2023/2024', '2024/2025', '2025/2026'];
 
   @override
+  void initState() {
+    super.initState();
+    _firebaseService = FirebaseService();
+  }
+
+  @override
   void dispose() {
     _pageController.dispose();
     _fullNameController.dispose();
@@ -85,7 +91,6 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
     super.dispose();
   }
 
-  // Validation Methods
   String? _validateFullName(String? value) {
     if (value == null || value.isEmpty) return 'Full name is required';
     if (value.length < 3) return 'Name must be at least 3 characters';
@@ -194,9 +199,7 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
     setState(() => _isLoading = true);
 
     try {
-      print('📧 Creating user with email: ${_emailController.text}');
-      
-      final user = await FirebaseService.signUpStudent(
+      final user = await _firebaseService.signUpStudent(
         email: _emailController.text.trim(),
         password: _passwordController.text,
         fullName: _fullNameController.text.trim(),
@@ -213,37 +216,35 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
       setState(() => _isLoading = false);
       
       if (user != null && mounted) {
-        print('✅ User created successfully: ${user.email}');
-        print('📧 Verification email sent to: ${user.email}');
-        
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => EmailVerificationDialog(
-            email: _emailController.text.trim(),
-            userRole: 'student',
-            userData: {
-              'fullName': _fullNameController.text.trim(),
-              'indexNumber': _indexNumberController.text.trim(),
-              'campusId': _campusIdController.text.trim(),
-              'nic': _nicController.text.trim(),
-              'phone': _phoneController.text.trim(),
-              'dob': _dobController.text.trim(),
-              'department': _selectedDepartment,
-              'degree': _selectedDegree,
-              'intake': _selectedIntake,
-            },
-          ),
-        );
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => EmailVerificationDialog(
+              email: _emailController.text.trim(),
+              userRole: 'student',
+              userData: {
+                'fullName': _fullNameController.text.trim(),
+                'indexNumber': _indexNumberController.text.trim(),
+                'campusId': _campusIdController.text.trim(),
+                'nic': _nicController.text.trim(),
+                'phone': _phoneController.text.trim(),
+                'dob': _dobController.text.trim(),
+                'department': _selectedDepartment,
+                'degree': _selectedDegree,
+                'intake': _selectedIntake,
+              },
+            ),
+          );
+        }
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      print('❌ Error creating user: $e');
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text(e.toString().replaceAll('Exception: ', '')),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -271,19 +272,16 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
       body: Stack(
         children: [
           const AnimatedGlassBackground(),
-          
           Positioned.fill(
             child: Container(
               color: Colors.black.withValues(alpha: 0.3),
             ),
           ),
-          
           SafeArea(
             child: Column(
               children: [
                 _buildAppBar(),
                 _buildHeader(),
-                
                 Expanded(
                   child: Form(
                     key: _formKey,
@@ -303,7 +301,6 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
               ],
             ),
           ),
-          
           if (_isLoading) _buildLoadingOverlay(),
         ],
       ),
@@ -322,9 +319,7 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
               border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
             ),
             child: IconButton(
-              onPressed: _currentStep > 0 
-                ? _previousPage 
-                : () => Navigator.pop(context),
+              onPressed: _currentStep > 0 ? _previousPage : () => Navigator.pop(context),
               icon: Icon(
                 _currentStep > 0 ? Icons.arrow_back_ios_new : Icons.close,
                 color: Colors.white,
@@ -338,10 +333,7 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
               children: [
                 Text(
                   'Step ${_currentStep + 1}/$_totalSteps',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: Colors.white70,
-                  ),
+                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.white70),
                 ),
                 const SizedBox(height: 4),
                 LinearProgressIndicator(
@@ -366,16 +358,11 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
       case 1: title = 'Academic Details'; break;
       case 2: title = 'Program Selection'; break;
     }
-    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Text(
         title,
-        style: GoogleFonts.poppins(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
+        style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
       ),
     );
   }
@@ -410,10 +397,7 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
             obscureText: _obscurePassword,
             validator: _validatePassword,
             suffixIcon: IconButton(
-              icon: Icon(
-                _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                color: Colors.white70,
-              ),
+              icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.white70),
               onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
             ),
           ),
@@ -426,10 +410,7 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
             obscureText: _obscureConfirmPassword,
             validator: _validateConfirmPassword,
             suffixIcon: IconButton(
-              icon: Icon(
-                _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
-                color: Colors.white70,
-              ),
+              icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility, color: Colors.white70),
               onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
             ),
           ),
@@ -437,12 +418,8 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
           CheckboxListTile(
             value: _agreeToTerms,
             onChanged: (val) => setState(() => _agreeToTerms = val ?? false),
-            title: Text(
-              'I agree to Terms & Conditions',
-              style: GoogleFonts.poppins(fontSize: 12, color: Colors.white70),
-            ),
+            title: Text('I agree to Terms & Conditions', style: GoogleFonts.poppins(fontSize: 12, color: Colors.white70)),
             controlAffinity: ListTileControlAffinity.leading,
-            checkboxShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
             activeColor: AppColors.electricPurple,
           ),
         ],
@@ -534,9 +511,7 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
             width: double.infinity,
             height: 55,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.electricPurple, AppColors.softMagenta],
-              ),
+              gradient: const LinearGradient(colors: [AppColors.electricPurple, AppColors.softMagenta]),
               borderRadius: BorderRadius.circular(16),
             ),
             child: ElevatedButton(
@@ -544,17 +519,11 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
               child: Text(
                 'Complete Registration',
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
+                style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
               ),
             ),
           ),
@@ -565,16 +534,13 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
 
   Widget _buildNavigationButtons() {
     if (_currentStep >= 2) return const SizedBox.shrink();
-    
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Container(
         width: double.infinity,
         height: 55,
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppColors.electricPurple, AppColors.softMagenta],
-          ),
+          gradient: const LinearGradient(colors: [AppColors.electricPurple, AppColors.softMagenta]),
           borderRadius: BorderRadius.circular(16),
         ),
         child: ElevatedButton(
@@ -582,18 +548,9 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
-          child: Text(
-            'Next',
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
+          child: Text('Next', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
         ),
       ),
     );

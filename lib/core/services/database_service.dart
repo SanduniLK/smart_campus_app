@@ -174,32 +174,28 @@ class DatabaseService {
 
   // ==================== STAFF OPERATIONS ====================
 
-  // Insert Staff Details
-  Future<void> insertStaffDetails(Map<String, dynamic> staffData) async {
-    final db = await database;
-    await db.insert(
-      'staff',
-      staffData,
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-  }
+  // Insert Staff Details with Faculty and Department
+Future<void> insertStaffDetails(Map<String, dynamic> staffData) async {
+  final db = await database;
+  await db.insert(
+    'staff',
+    staffData,
+    conflictAlgorithm: ConflictAlgorithm.replace,
+  );
+  print('✅ Staff details saved for UID: ${staffData['uid']}');
+}
 
-  // Get Staff Details by UID
-  Future<Map<String, dynamic>?> getStaffDetails(String uid) async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'staff',
-      where: 'uid = ?',
-      whereArgs: [uid],
-    );
-    
-    if (maps.isNotEmpty) {
-      return maps.first;
-    }
-    return null;
-  }
-
-  // ==================== SESSION OPERATIONS ====================
+// Get Staff Details
+Future<Map<String, dynamic>?> getStaffDetails(String uid) async {
+  final db = await database;
+  final List<Map<String, dynamic>> maps = await db.query(
+    'staff',
+    where: 'uid = ?',
+    whereArgs: [uid],
+  );
+  
+  return maps.isNotEmpty ? maps.first : null;
+}
 
   // Record Login
   Future<void> recordLogin(String uid) async {
@@ -212,14 +208,29 @@ class DatabaseService {
 
   // Record Logout
   Future<void> recordLogout(String uid) async {
-    final db = await database;
-    await db.rawUpdate('''
-      UPDATE sessions 
-      SET logoutTime = ? 
-      WHERE uid = ? AND logoutTime IS NULL
-      ORDER BY id DESC LIMIT 1
-    ''', [DateTime.now().toIso8601String(), uid]);
+  final db = await database;
+  
+  
+  List<Map<String, dynamic>> result = await db.query(
+    'sessions',
+    where: 'uid = ? AND logoutTime IS NULL',
+    whereArgs: [uid],
+    orderBy: 'id DESC',
+    limit: 1,
+  );
+  
+  if (result.isNotEmpty) {
+    int sessionId = result.first['id'];
+    
+  
+    await db.update(
+      'sessions',
+      {'logoutTime': DateTime.now().toIso8601String()},
+      where: 'id = ?',
+      whereArgs: [sessionId],
+    );
   }
+}
 
   // Get User Sessions
   Future<List<Map<String, dynamic>>> getUserSessions(String uid) async {

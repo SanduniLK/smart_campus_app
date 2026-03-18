@@ -1,19 +1,21 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:smart_campus_app/core/services/database_service.dart';
 
 class FirebaseService {
-  static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final DatabaseService _db = DatabaseService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final DatabaseService _db = DatabaseService();
 
   // User Roles
   static const String ROLE_STUDENT = 'student';
   static const String ROLE_STAFF = 'staff';
 
-  // Current user
-  static User? get currentUser => _auth.currentUser;
+  // Current user getter
+  User? get currentUser => _auth.currentUser;
 
-  // Sign Up with Email & Password (Student)
-  static Future<User?> signUpStudent({
+  // Sign Up Student
+  Future<User?> signUpStudent({
     required String email,
     required String password,
     required String fullName,
@@ -27,7 +29,8 @@ class FirebaseService {
     required String intake,
   }) async {
     try {
-      // Create authentication user in Firebase
+      print('📝 Creating student account for: $email');
+      
       UserCredential result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -36,21 +39,21 @@ class FirebaseService {
       User? user = result.user;
 
       if (user != null) {
-        // Update display name in Firebase
+        print('✅ User created in Firebase: ${user.uid}');
+        
         await user.updateDisplayName(fullName);
         await user.reload();
 
-        // Save user data to LOCAL SQLite database
+        // Save to SQLite
         await _db.insertOrUpdateUser({
           'uid': user.uid,
           'email': email,
           'fullName': fullName,
           'role': ROLE_STUDENT,
-          'isEmailVerified': user.emailVerified ? 1 : 0,
+          'isEmailVerified': 0,
           'createdAt': DateTime.now().toIso8601String(),
         });
 
-        // Save student-specific details
         await _db.insertStudentDetails({
           'uid': user.uid,
           'indexNumber': indexNumber,
@@ -63,69 +66,121 @@ class FirebaseService {
           'intake': intake,
         });
 
-        // Send email verification
+        // SEND EMAIL VERIFICATION - FIXED
         await sendEmailVerification();
+        print('✅ Verification email sent to: $email');
       }
 
       return user;
     } on FirebaseAuthException catch (e) {
+      print('❌ FirebaseAuthException: ${e.code} - ${e.message}');
       throw _handleFirebaseAuthException(e);
     } catch (e) {
-      throw 'An error occurred: $e';
+      print('❌ Unexpected error: $e');
+      throw 'An error occurred. Please try again.';
     }
   }
 
-  // Sign Up with Email & Password (Staff)
-  static Future<User?> signUpStaff({
-    required String email,
-    required String password,
-    required String fullName,
-    required String staffId,
-  }) async {
+  // Sign Up Staff with Faculty and Department
+Future<User?> signUpStaff({
+  required String email,
+  required String password,
+  required String fullName,
+  required String staffId,
+  required String faculty,        // Added faculty
+  required String department,      // Added department
+ 
+}) async {
+  try {
+    print('📝 Creating staff account for: $email');
+    
+    UserCredential result = await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+
+    User? user = result.user;
+
+    if (user != null) {
+      print('✅ User created in Firebase: ${user.uid}');
+      
+      await user.updateDisplayName(fullName);
+      await user.reload();
+
+      // Save to SQLite - Users table
+      await _db.insertOrUpdateUser({
+        'uid': user.uid,
+        'email': email,
+        'fullName': fullName,
+        'role': ROLE_STAFF,
+        'isEmailVerified': 0,
+        'createdAt': DateTime.now().toIso8601String(),
+      });
+
+      // Save to SQLite - Staff table with faculty and department
+      await _db.insertStaffDetails({
+        'uid': user.uid,
+        'staffId': staffId,
+        'faculty': faculty,
+        'department': department,
+        
+      });
+
+      // Send email verification
+      await sendEmailVerification();
+      print('✅ Verification email sent to: $email');
+    }
+
+    return user;
+  } on FirebaseAuthException catch (e) {
+    print('❌ FirebaseAuthException: ${e.code} - ${e.message}');
+    throw _handleFirebaseAuthException(e);
+  } catch (e) {
+    print('❌ Unexpected error: $e');
+    throw 'An error occurred. Please try again.';
+  }
+}
+
+  // Send Email Verification - FIXED VERSION
+  Future<void> sendEmailVerification() async {
     try {
-      // Create authentication user in Firebase
-      UserCredential result = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      User? user = result.user;
-
+      User? user = _auth.currentUser;
       if (user != null) {
-        // Update display name in Firebase
-        await user.updateDisplayName(fullName);
-        await user.reload();
-
-        // Save user data to LOCAL SQLite database
-        await _db.insertOrUpdateUser({
-          'uid': user.uid,
-          'email': email,
-          'fullName': fullName,
-          'role': ROLE_STAFF,
-          'isEmailVerified': user.emailVerified ? 1 : 0,
-          'createdAt': DateTime.now().toIso8601String(),
-        });
-
-        // Save staff-specific details
-        await _db.insertStaffDetails({
-          'uid': user.uid,
-          'staffId': staffId,
-        });
-
-        // Send email verification
-        await sendEmailVerification();
+        if (!user.emailVerified) {
+          await user.sendEmailVerification();
+          print('✅ Verification email sent successfully');
+        } else {
+          print('⚠️ Email already verified');
+        }
+      } else {
+        print('❌ No user logged in');
       }
-
-      return user;
     } on FirebaseAuthException catch (e) {
+      print('❌ FirebaseAuthException: ${e.code}');
       throw _handleFirebaseAuthException(e);
     } catch (e) {
-      throw 'An error occurred: $e';
+      print('❌ Error sending verification: $e');
+      throw 'Failed to send verification email';
+    }
+  }
+
+  // Check Email Verification
+  Future<bool> checkEmailVerified() async {
+    try {
+      User? user = _auth.currentUser;
+      if (user != null) {
+        await user.reload();
+        return user.emailVerified;
+      }
+      return false;
+    } catch (e) {
+      print('❌ Error checking verification: $e');
+      return false;
     }
   }
 
   // Sign In
-  static Future<User?> signInWithEmail({
+  Future<User?> signInWithEmail({
     required String email,
     required String password,
   }) async {
@@ -138,29 +193,8 @@ class FirebaseService {
       User? user = result.user;
       
       if (user != null) {
-        // Reload user to get latest email verification status
         await user.reload();
-        
-        // Update local database with latest info
-        final existingUser = await _db.getUserByUid(user.uid);
-        
-        if (existingUser != null) {
-          // Update verification status if changed
-          await _db.updateEmailVerificationStatus(user.uid, user.emailVerified);
-          await _db.updateLastLogin(user.uid);
-        } else {
-          // If user exists in Firebase but not in local DB (shouldn't happen, but just in case)
-          await _db.insertOrUpdateUser({
-            'uid': user.uid,
-            'email': user.email,
-            'fullName': user.displayName ?? 'User',
-            'role': 'unknown', // We don't know role yet
-            'isEmailVerified': user.emailVerified ? 1 : 0,
-            'lastLoginAt': DateTime.now().toIso8601String(),
-          });
-        }
-        
-        // Record login session
+        await _db.updateLastLogin(user.uid);
         await _db.recordLogin(user.uid);
       }
       
@@ -170,58 +204,8 @@ class FirebaseService {
     }
   }
 
-  // Send Email Verification
-  static Future<void> sendEmailVerification() async {
-  try {
-    User? user = _auth.currentUser;
-    if (user != null && !user.emailVerified) {
-      await user.sendEmailVerification();
-      print('✅ Verification email sent to: ${user.email}');
-    } else {
-      print('❌ User is null or already verified');
-    }
-  } catch (e) {
-    print('❌ Failed to send verification email: $e');
-    throw 'Failed to send verification email: $e';
-  }
-}
-
-  // Check email verification status and update local DB
-  static Future<bool> checkEmailVerified() async {
-    try {
-      User? user = _auth.currentUser;
-      if (user != null) {
-        await user.reload();
-        bool isVerified = user.emailVerified;
-        
-        // Update local database
-        await _db.updateEmailVerificationStatus(user.uid, isVerified);
-        
-        return isVerified;
-      }
-      return false;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  // Get user role from local database
-  static Future<String?> getUserRole(String uid) async {
-    final user = await _db.getUserByUid(uid);
-    return user?['role'] as String?;
-  }
-
-  // Get complete user profile from local database
-  static Future<Map<String, dynamic>?> getCurrentUserProfile() async {
-    User? user = _auth.currentUser;
-    if (user != null) {
-      return await _db.getCompleteUserProfile(user.uid);
-    }
-    return null;
-  }
-
   // Sign Out
-  static Future<void> signOut() async {
+  Future<void> signOut() async {
     User? user = _auth.currentUser;
     if (user != null) {
       await _db.recordLogout(user.uid);
@@ -230,7 +214,7 @@ class FirebaseService {
   }
 
   // Handle Firebase Auth Exceptions
-  static String _handleFirebaseAuthException(FirebaseAuthException e) {
+  String _handleFirebaseAuthException(FirebaseAuthException e) {
     switch (e.code) {
       case 'email-already-in-use':
         return 'This email is already registered.';
@@ -246,11 +230,10 @@ class FirebaseService {
         return 'No account found with this email.';
       case 'wrong-password':
         return 'Incorrect password.';
+      case 'too-many-requests':
+        return 'Too many requests. Try again later.';
       default:
         return 'An error occurred. Please try again.';
     }
   }
-
-  // Stream of auth changes
-  static Stream<User?> get authStateChanges => _auth.authStateChanges();
 }

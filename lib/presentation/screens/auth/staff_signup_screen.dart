@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
 import 'package:smart_campus_app/core/services/firebase_service.dart';
-import 'package:smart_campus_app/presentation/widgets/splash_screen/animated_glass_background.dart';
 import 'package:smart_campus_app/presentation/widgets/email_verification_dialog.dart';
+import 'package:smart_campus_app/presentation/widgets/glass_text_field.dart';
+import 'package:smart_campus_app/presentation/widgets/splash_screen/animated_glass_background.dart';
 
 class StaffSignUpScreen extends StatefulWidget {
   const StaffSignUpScreen({super.key});
@@ -15,26 +16,32 @@ class StaffSignUpScreen extends StatefulWidget {
 
 class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
   final _formKey = GlobalKey<FormState>();
-  
-  // Controllers
   final _staffIdController = TextEditingController();
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
-  // Focus Nodes
+  final _facultyController = TextEditingController();
+  final _departmentController = TextEditingController();
+
   final _staffIdFocusNode = FocusNode();
   final _fullNameFocusNode = FocusNode();
   final _emailFocusNode = FocusNode();
   final _passwordFocusNode = FocusNode();
   final _confirmPasswordFocusNode = FocusNode();
   
-  // State
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _agreeToTerms = false;
   bool _isLoading = false;
+
+  late final FirebaseService _firebaseService;
+
+  @override
+  void initState() {
+    super.initState();
+    _firebaseService = FirebaseService();
+  }
 
   @override
   void dispose() {
@@ -51,7 +58,6 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
     super.dispose();
   }
 
-  // Validation Methods
   String? _validateStaffId(String? value) {
     if (value == null || value.isEmpty) return 'Staff ID is required';
     return null;
@@ -81,130 +87,51 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
     return null;
   }
 
- 
-Future<void> _handleSignUp() async {
-  if (_formKey.currentState!.validate() && _agreeToTerms) {
-    setState(() => _isLoading = true);
-    
-    try {
+  Future<void> _handleSignUp() async {
+    if (_formKey.currentState!.validate() && _agreeToTerms) {
+      setState(() => _isLoading = true);
       
-      final user = await FirebaseService.signUpStaff(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-        fullName: _fullNameController.text.trim(),
-        staffId: _staffIdController.text.trim(),
-      );
-      
-      setState(() => _isLoading = false);
-      
-      if (user != null && mounted) {
+      try {
+        final user = await _firebaseService.signUpStaff(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+          fullName: _fullNameController.text.trim(),
+          staffId: _staffIdController.text.trim(),
+          faculty: _facultyController.text.trim(),
+          department: _departmentController.text.trim(),
+        );
         
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => EmailVerificationDialog(
-            email: _emailController.text.trim(),
-            userRole: 'staff',
-            userData: {
-              'staffId': _staffIdController.text.trim(),
-            },
-          ),
-        );
-      }
-    } catch (e) {
-      setState(() => _isLoading = false);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString(), style: GoogleFonts.poppins()),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        setState(() => _isLoading = false);
+        
+        if (user != null && mounted) {
+          if (mounted) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => EmailVerificationDialog(
+                email: _emailController.text.trim(),
+                userRole: 'staff',
+                userData: {
+                  'staffId': _staffIdController.text.trim(),
+                },
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        setState(() => _isLoading = false);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     }
-  }
-}
-
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Center(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-              child: Container(
-                width: 300,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AppColors.electricPurple, AppColors.softMagenta],
-                        ),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.check_rounded, color: Colors.white, size: 40),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Profile Created!',
-                      style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Your staff profile has been created successfully.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(fontSize: 14, color: Colors.white.withOpacity(0.8)),
-                    ),
-                    const SizedBox(height: 20),
-                    Container(
-                      width: double.infinity,
-                      height: 45,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AppColors.electricPurple, AppColors.softMagenta],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          Navigator.pushReplacementNamed(context, '/login');
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: Text(
-                          'Go to Login',
-                          style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   @override
@@ -214,8 +141,11 @@ Future<void> _handleSignUp() async {
       body: Stack(
         children: [
           const AnimatedGlassBackground(),
-          Positioned.fill(child: Container(color: Colors.black.withOpacity(0.2))),
-          
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.2),
+            ),
+          ),
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
@@ -231,7 +161,6 @@ Future<void> _handleSignUp() async {
               ),
             ),
           ),
-          
           if (_isLoading) _buildLoadingOverlay(),
         ],
       ),
@@ -247,8 +176,8 @@ Future<void> _handleSignUp() async {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.3),
-            border: Border.all(color: Colors.white.withOpacity(0.15), width: 1.5),
+            color: Colors.black.withValues(alpha: 0.3),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
             borderRadius: BorderRadius.circular(16),
           ),
           child: IconButton(
@@ -280,7 +209,7 @@ Future<void> _handleSignUp() async {
           'Create your staff account',
           style: GoogleFonts.poppins(
             fontSize: 14,
-            color: Colors.white.withOpacity(0.9),
+            color: Colors.white.withValues(alpha: 0.9),
           ),
         ),
       ],
@@ -296,8 +225,8 @@ Future<void> _handleSignUp() async {
           width: double.infinity,
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.4),
-            border: Border.all(color: Colors.white.withOpacity(0.15), width: 1.5),
+            color: Colors.black.withValues(alpha: 0.4),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
             borderRadius: BorderRadius.circular(24),
           ),
           child: Form(
@@ -339,7 +268,7 @@ Future<void> _handleSignUp() async {
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       size: 20,
                     ),
                     onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -357,7 +286,7 @@ Future<void> _handleSignUp() async {
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscureConfirmPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       size: 20,
                     ),
                     onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
@@ -392,8 +321,8 @@ Future<void> _handleSignUp() async {
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.3),
-            border: Border.all(color: Colors.white.withOpacity(0.15), width: 1.5),
+            color: Colors.black.withValues(alpha: 0.3),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
             borderRadius: BorderRadius.circular(16),
           ),
           child: TextFormField(
@@ -406,9 +335,9 @@ Future<void> _handleSignUp() async {
             validator: validator,
             decoration: InputDecoration(
               labelText: label,
-              labelStyle: GoogleFonts.poppins(color: Colors.white.withOpacity(0.8), fontSize: 14),
+              labelStyle: GoogleFonts.poppins(color: Colors.white.withValues(alpha: 0.8), fontSize: 14),
               floatingLabelStyle: GoogleFonts.poppins(color: Colors.white, fontSize: 12),
-              prefixIcon: Icon(icon, color: Colors.white.withOpacity(0.8), size: 20),
+              prefixIcon: Icon(icon, color: Colors.white.withValues(alpha: 0.8), size: 20),
               suffixIcon: suffixIcon,
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -433,7 +362,7 @@ Future<void> _handleSignUp() async {
               return Colors.transparent;
             }),
             checkColor: Colors.white,
-            side: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
           ),
         ),
@@ -441,7 +370,7 @@ Future<void> _handleSignUp() async {
         Expanded(
           child: Text(
             'I agree to the Terms & Conditions and Privacy Policy',
-            style: GoogleFonts.poppins(fontSize: 12, color: Colors.white.withOpacity(0.8)),
+            style: GoogleFonts.poppins(fontSize: 12, color: Colors.white.withValues(alpha: 0.8)),
           ),
         ),
       ],
@@ -461,7 +390,7 @@ Future<void> _handleSignUp() async {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.electricPurple.withOpacity(0.3),
+            color: AppColors.electricPurple.withValues(alpha: 0.3),
             blurRadius: 20,
             spreadRadius: 2,
             offset: const Offset(0, 4),
@@ -486,7 +415,7 @@ Future<void> _handleSignUp() async {
   Widget _buildLoadingOverlay() {
     return Positioned.fill(
       child: Container(
-        color: Colors.black.withOpacity(0.5),
+        color: Colors.black.withValues(alpha: 0.5),
         child: Center(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
@@ -497,8 +426,8 @@ Future<void> _handleSignUp() async {
                 height: 100,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5),
+                  color: Colors.black.withValues(alpha: 0.6),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1.5),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Center(

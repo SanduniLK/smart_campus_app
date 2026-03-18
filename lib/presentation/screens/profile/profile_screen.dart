@@ -1,21 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
-import 'package:smart_campus_app/core/services/firebase_service.dart';
+import 'package:smart_campus_app/logic/auth_bloc/auth_bloc.dart';
+import 'package:smart_campus_app/logic/auth_bloc/auth_event.dart';
+import 'package:smart_campus_app/logic/auth_bloc/auth_state.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
-  Future<void> _logout(BuildContext context) async {
-    await FirebaseService.signOut();
-    if (context.mounted) {
-      Navigator.pushReplacementNamed(context, '/login');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseService.currentUser;
+    return BlocConsumer<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthUnauthenticated) {
+          Navigator.pushReplacementNamed(context, '/login');
+        } else if (state is AuthError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      },
+      builder: (context, state) {
+        if (state is AuthLoading) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (state is AuthAuthenticated) {
+          return _buildProfileUI(context, state);
+        } else {
+          return const Center(child: Text('Please login again'));
+        }
+      },
+    );
+  }
+
+  Widget _buildProfileUI(BuildContext context, AuthAuthenticated state) {
+    final user = state.user;
     
     return SafeArea(
       child: SingleChildScrollView(
@@ -41,7 +63,7 @@ class ProfileScreen extends StatelessWidget {
               ),
               child: Center(
                 child: Text(
-                  user?.displayName?[0].toUpperCase() ?? 'S',
+                  user.fullName[0].toUpperCase(),
                   style: const TextStyle(
                     fontSize: 40,
                     color: Colors.white,
@@ -52,7 +74,7 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              user?.displayName ?? 'Student',
+              user.fullName,
               style: GoogleFonts.poppins(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -60,10 +82,26 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
             Text(
-              user?.email ?? '',
+              user.email,
               style: GoogleFonts.poppins(
                 fontSize: 14,
                 color: Colors.white70,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.electricPurple.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                user.role.toUpperCase(),
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.electricPurple,
+                ),
               ),
             ),
             
@@ -91,7 +129,9 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
               child: ElevatedButton(
-                onPressed: () => _logout(context),
+                onPressed: () {
+                  context.read<AuthBloc>().add(AuthLogoutRequested());
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   shadowColor: Colors.transparent,

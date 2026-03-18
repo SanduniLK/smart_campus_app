@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:smart_campus_app/data/models/user_model.dart';
 
 abstract class AuthState extends Equatable {
   const AuthState();
@@ -12,18 +13,13 @@ class AuthInitial extends AuthState {}
 class AuthLoading extends AuthState {}
 
 class AuthAuthenticated extends AuthState {
-  final String userId;
-  final String userRole;
-  final String userName;
+  final UserModel user;
+  
 
-  const AuthAuthenticated({
-    required this.userId,
-    required this.userRole,
-    required this.userName,
-  });
+  const AuthAuthenticated(this.user);
   
   @override
-  List<Object?> get props => [userId, userRole, userName];
+  List<Object?> get props => [user];
 }
 
 class AuthUnauthenticated extends AuthState {}

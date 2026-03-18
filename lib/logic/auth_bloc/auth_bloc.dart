@@ -1,14 +1,18 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:smart_campus_app/core/services/firebase_service.dart';
-import 'package:smart_campus_app/core/services/database_service.dart';
+import 'package:smart_campus_app/data/repositories/auth_repository.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  AuthBloc() : super(AuthInitial()) {
+  final AuthRepository _authRepository;
+
+  AuthBloc({required AuthRepository authRepository})
+      : _authRepository = authRepository,
+        super(AuthInitial()) {
     on<AuthCheckStatusRequested>(_onCheckStatus);
     on<AuthLoginRequested>(_onLogin);
-    on<AuthSignUpRequested>(_onSignUp);
+    on<AuthStudentSignUpRequested>(_onStudentSignUp);
+    on<AuthStaffSignUpRequested>(_onStaffSignUp);
     on<AuthLogoutRequested>(_onLogout);
     on<AuthEmailVerified>(_onEmailVerified);
   }
@@ -20,25 +24,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
     
     try {
-      final user = FirebaseService.currentUser;
+      final user = await _authRepository.getCurrentUser();
       
       if (user != null) {
-        if (user.emailVerified) {
-          final userData = await DatabaseService().getUserByUid(user.uid);
-          
-          emit(AuthAuthenticated(
-            userId: user.uid,
-            userRole: userData?['role'] ?? 'student',
-            userName: user.displayName ?? 'User',
-          ));
-        } else {
-          emit(AuthEmailVerificationRequired(user.email!));
-        }
+        emit(AuthAuthenticated(user));
       } else {
         emit(AuthUnauthenticated());
       }
     } catch (e) {
-      emit(AuthError('Failed to check auth status: $e'));
+      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
     }
   }
 
@@ -49,38 +43,70 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
     
     try {
-      final user = await FirebaseService.signInWithEmail(
+      final user = await _authRepository.signIn(
         email: event.email,
         password: event.password,
       );
       
       if (user != null) {
-        if (user.emailVerified) {
-          final userData = await DatabaseService().getUserByUid(user.uid);
-          
-          emit(AuthAuthenticated(
-            userId: user.uid,
-            userRole: userData?['role'] ?? 'student',
-            userName: user.displayName ?? 'User',
-          ));
-        } else {
-          emit(AuthEmailVerificationRequired(user.email!));
-        }
-      } else {
-        emit(const AuthError('Login failed'));
+        emit(AuthAuthenticated(user));
       }
     } catch (e) {
-      emit(AuthError(e.toString()));
+      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
     }
   }
 
-  Future<void> _onSignUp(
-    AuthSignUpRequested event,
+  Future<void> _onStudentSignUp(
+    AuthStudentSignUpRequested event,
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
-    // After signup, verification required
-    emit(AuthEmailVerificationRequired(event.email));
+    
+    try {
+      final user = await _authRepository.signUpStudent(
+        email: event.email,
+        password: event.password,
+        fullName: event.fullName,
+        indexNumber: event.indexNumber,
+        campusId: event.campusId,
+        nic: event.nic,
+        phone: event.phone,
+        dob: event.dob,
+        department: event.department,
+        degree: event.degree,
+        intake: event.intake,
+      );
+      
+      if (user != null) {
+        emit(AuthEmailVerificationRequired(user.email));
+      }
+    } catch (e) {
+      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onStaffSignUp(
+    AuthStaffSignUpRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    
+    try {
+      final user = await _authRepository.signUpStaff(
+        email: event.email,
+        password: event.password,
+        fullName: event.fullName,
+        staffId: event.staffId,
+        faculty: event.faculty,
+        department: event.department,
+      );
+      
+      if (user != null) {
+        emit(AuthEmailVerificationRequired(user.email));
+      }
+    } catch (e) {
+      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
+    }
   }
 
   Future<void> _onLogout(
@@ -90,10 +116,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
     
     try {
-      await FirebaseService.signOut();
+      await _authRepository.signOut();
       emit(AuthUnauthenticated());
     } catch (e) {
-      emit(AuthError('Failed to logout: $e'));
+      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
     }
   }
 
@@ -104,20 +130,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
     
     try {
-      final user = FirebaseService.currentUser;
+      final user = await _authRepository.getCurrentUser();
       if (user != null) {
-        final userData = await DatabaseService().getUserByUid(user.uid);
-        
-        emit(AuthAuthenticated(
-          userId: user.uid,
-          userRole: userData?['role'] ?? 'student',
-          userName: user.displayName ?? 'User',
-        ));
+        emit(AuthAuthenticated(user));
       } else {
         emit(AuthUnauthenticated());
       }
     } catch (e) {
-      emit(AuthError('Failed to load user data: $e'));
+      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
     }
   }
 }

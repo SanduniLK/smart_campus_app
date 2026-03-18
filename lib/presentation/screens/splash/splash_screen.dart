@@ -1,7 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
+import 'package:smart_campus_app/logic/auth_bloc/auth_bloc.dart';
+import 'package:smart_campus_app/logic/auth_bloc/auth_state.dart';
 
 class RuhunaSplashScreen extends StatefulWidget {
   const RuhunaSplashScreen({super.key});
@@ -17,8 +20,6 @@ class _RuhunaSplashScreenState extends State<RuhunaSplashScreen> with SingleTick
   @override
   void initState() {
     super.initState();
-    
-    // Animation setup
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -26,13 +27,17 @@ class _RuhunaSplashScreenState extends State<RuhunaSplashScreen> with SingleTick
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeIn),
     );
-
     _controller.forward();
 
-    // Navigate to login after 3 seconds
-    Future.delayed(const Duration(seconds: 3), () {
+    // Auth status check කරලා navigate කරන්න
+    Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
+        final state = context.read<AuthBloc>().state;
+        if (state is AuthAuthenticated) {
+          Navigator.pushReplacementNamed(context, '/home');
+        } else {
+          Navigator.pushReplacementNamed(context, '/login');
+        }
       }
     });
   }
@@ -45,63 +50,67 @@ class _RuhunaSplashScreenState extends State<RuhunaSplashScreen> with SingleTick
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          // 1. Background Mesh/Glow Layer
-          const Positioned.fill(
-            child: MeshBackgroundPainter(),
-          ),
-
-          // 2. Global Blur Layer (Glass Effect)
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
-              child: Container(
-                color: AppColors.background.withOpacity(0.3),
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          body: Stack(
+            children: [
+              // 1. Background Mesh/Glow Layer
+              const Positioned.fill(
+                child: MeshBackgroundPainter(),
               ),
-            ),
-          ),
 
-          // 3. Vignette for Focus
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment.center,
-                  radius: 1.2,
-                  colors: [
-                    Colors.transparent,
-                    AppColors.background.withOpacity(0.7),
-                  ],
+              // 2. Global Blur Layer (Glass Effect)
+              Positioned.fill(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+                  child: Container(
+                    color: AppColors.background.withOpacity(0.3),
+                  ),
                 ),
               ),
-            ),
-          ),
 
-          // 4. Main Content
-          FadeTransition(
-            opacity: _fadeAnimation,
-            child: SafeArea(
-              child: Center(
-                child: Column(
-                  
-                  children: [
-                    _buildLogo(),
-                    const SizedBox(height: 40),
-                    _buildUniversityName(),
-                    const SizedBox(height: 15),
-                    _buildSmartCampusBadge(),
-                    const SizedBox(height: 100),
-                    _buildLoadingIndicator(),
-                  ],
+              // 3. Vignette for Focus
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment.center,
+                      radius: 1.2,
+                      colors: [
+                        Colors.transparent,
+                        AppColors.background.withOpacity(0.7),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
+
+              // 4. Main Content
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: SafeArea(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildLogo(),
+                        const SizedBox(height: 40),
+                        _buildUniversityName(),
+                        const SizedBox(height: 15),
+                        _buildSmartCampusBadge(),
+                        const SizedBox(height: 100),
+                        _buildLoadingIndicator(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
