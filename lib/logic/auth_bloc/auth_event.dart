@@ -13,7 +13,6 @@ class AuthLoginRequested extends AuthEvent {
   final String email;
   final String password;
 
-
   const AuthLoginRequested({required this.email, required this.password});
   
   @override
@@ -54,6 +53,7 @@ class AuthStudentSignUpRequested extends AuthEvent {
   ];
 }
 
+// FIXED: Added missing parameters
 class AuthStaffSignUpRequested extends AuthEvent {
   final String email;
   final String password;
@@ -61,6 +61,9 @@ class AuthStaffSignUpRequested extends AuthEvent {
   final String staffId;
   final String faculty;
   final String department;
+  final String designation;        // ✅ Added
+  final String phone;               // ✅ Added
+  final String? officeLocation;     // ✅ Added
 
   const AuthStaffSignUpRequested({
     required this.email,
@@ -69,10 +72,16 @@ class AuthStaffSignUpRequested extends AuthEvent {
     required this.staffId,
     required this.faculty,
     required this.department,
+    required this.designation,       // ✅ Added
+    required this.phone,              // ✅ Added
+    this.officeLocation,              // ✅ Added
   });
   
   @override
-  List<Object?> get props => [email, password, fullName, staffId, faculty, department];
+  List<Object?> get props => [
+    email, password, fullName, staffId, 
+    faculty, department, designation, phone, officeLocation  // ✅ Added to props
+  ];
 }
 
 class AuthLogoutRequested extends AuthEvent {}

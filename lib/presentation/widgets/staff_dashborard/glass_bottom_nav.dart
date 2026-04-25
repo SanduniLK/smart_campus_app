@@ -1,6 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import 'package:smart_campus_app/core/constants/app_colors.dart';
 
 class GlassBottomNavBar extends StatelessWidget {

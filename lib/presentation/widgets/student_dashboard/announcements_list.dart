@@ -1,32 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
-import 'package:smart_campus_app/data/models/student_model/dashboard_models.dart';
-import 'package:smart_campus_app/presentation/widgets/glass_card.dart';
-
 
 class AnnouncementsList extends StatelessWidget {
   final VoidCallback onViewAll;
 
-  const AnnouncementsList({super.key, required this.onViewAll});
-
-  List<AnnouncementModel> _getAnnouncements() {
-    return [
-      AnnouncementModel(
-        emoji: '📢',
-        title: 'University Holiday',
-        description: 'University closed on 25th December',
-        time: '2 hours ago',
-      ),
-      AnnouncementModel(
-        emoji: '⚠️',
-        title: 'System Maintenance',
-        description: 'Portal down tonight 10PM-12AM',
-        time: '5 hours ago',
-        isUrgent: true,
-      ),
-    ];
-  }
+  const AnnouncementsList({
+    super.key,
+    required this.onViewAll,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -37,11 +19,12 @@ class AnnouncementsList extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Announcements',
+              'ANNOUNCEMENTS',
               style: GoogleFonts.poppins(
-                fontSize: 18,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Colors.white,
+                color: AppColors.textSecondary,
+                letterSpacing: 1,
               ),
             ),
             TextButton(
@@ -50,6 +33,7 @@ class AnnouncementsList extends StatelessWidget {
                 'View All',
                 style: GoogleFonts.poppins(
                   fontSize: 12,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.electricPurple,
                 ),
               ),
@@ -57,87 +41,103 @@ class AnnouncementsList extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        ..._getAnnouncements().map((ann) => _buildAnnouncementCard(ann)),
+        const AnnouncementCard(
+          title: 'Exam timetable released – Semester 2',
+          time: '2 min ago',
+          isUrgent: true,
+        ),
+        const SizedBox(height: 12),
+        const AnnouncementCard(
+          title: 'Library extended hours until 10 PM',
+          time: '1 hr ago',
+          isUrgent: false,
+        ),
+        const SizedBox(height: 12),
+        const AnnouncementCard(
+          title: 'Tech Expo 2026 – closes Friday',
+          time: '3 hrs ago',
+          isUrgent: false,
+        ),
       ],
     );
   }
+}
 
-  Widget _buildAnnouncementCard(AnnouncementModel ann) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: GlassCard(
-        padding: const EdgeInsets.all(12),
-        borderColor: ann.isUrgent ? AppColors.vibrantYellow : null,
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: (ann.isUrgent ? AppColors.vibrantYellow : AppColors.electricPurple)
-                    .withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Center(
-                child: Text(ann.emoji, style: const TextStyle(fontSize: 20)),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          ann.title,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      if (ann.isUrgent)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.vibrantYellow.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'URGENT',
-                            style: GoogleFonts.poppins(
-                              fontSize: 8,
-                              color: AppColors.vibrantYellow,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  Text(
-                    ann.description,
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      color: Colors.white70,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    ann.time,
-                    style: GoogleFonts.poppins(
-                      fontSize: 9,
-                      color: Colors.white54,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+class AnnouncementCard extends StatelessWidget {
+  final String title;
+  final String time;
+  final bool isUrgent;
+
+  const AnnouncementCard({
+    super.key,
+    required this.title,
+    required this.time,
+    this.isUrgent = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.glassSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isUrgent ? AppColors.error.withValues(alpha: 0.3) : AppColors.cardBorder,
+          width: isUrgent ? 1.5 : 1,
         ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: isUrgent ? AppColors.error : AppColors.electricPurple,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  time,
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (isUrgent)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'URGENT',
+                style: GoogleFonts.poppins(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.error,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

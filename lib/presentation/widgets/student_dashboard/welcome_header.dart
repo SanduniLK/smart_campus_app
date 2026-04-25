@@ -1,26 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
-import 'package:intl/intl.dart';
 
 class WelcomeHeader extends StatelessWidget {
   final String userName;
+  final String? avatarUrl;
 
-  const WelcomeHeader({super.key, required this.userName});
-
-  String _getGreeting() {
-    var hour = DateTime.now().hour;
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
-  }
-
-  String _getFormattedDate() {
-    return DateFormat('EEEE, MMMM d').format(DateTime.now());
-  }
+  const WelcomeHeader({
+    super.key,
+    required this.userName,
+    this.avatarUrl,
+  });
 
   @override
   Widget build(BuildContext context) {
+    // Extract initials from name
+    String initials = userName
+        .split(' ')
+        .map((e) => e.isNotEmpty ? e[0] : '')
+        .take(2)
+        .join()
+        .toUpperCase();
+    
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -28,55 +29,59 @@ class WelcomeHeader extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _getGreeting(),
+              'Good morning,',
               style: GoogleFonts.poppins(
                 fontSize: 14,
-                color: Colors.white70,
-              ),
-            ),
-            Text(
-              userName.split(' ').first,
-              style: GoogleFonts.poppins(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: AppColors.textSecondary,
               ),
             ),
             const SizedBox(height: 4),
             Text(
-              _getFormattedDate(),
+              userName,
               style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: Colors.white60,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
               ),
             ),
           ],
         ),
         Container(
-          width: 60,
-          height: 60,
+          width: 50,
+          height: 50,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [AppColors.electricPurple, AppColors.softMagenta],
+              colors: [AppColors.electricPurple, Color(0xFFA855F7)],
             ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.electricPurple.withValues(alpha: 0.3),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(25),
           ),
           child: Center(
-            child: Text(
-              userName[0].toUpperCase(),
-              style: const TextStyle(
-                fontSize: 24,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: avatarUrl != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(25),
+                    child: Image.network(
+                      avatarUrl!,
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Text(
+                        initials,
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  )
+                : Text(
+                    initials,
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
           ),
         ),
       ],
