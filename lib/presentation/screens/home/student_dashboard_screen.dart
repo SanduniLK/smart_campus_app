@@ -15,7 +15,7 @@ class StudentDashboardScreen extends StatefulWidget {
 }
 
 class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
-  int _currentIndex = 0;
+
 
   @override
   Widget build(BuildContext context) {
