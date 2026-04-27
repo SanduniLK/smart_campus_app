@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
-import 'package:smart_campus_app/presentation/widgets/glass_card.dart';
+
 import 'package:smart_campus_app/presentation/widgets/mesh_gradient_background.dart';
 
 class VerificationSuccessScreen extends StatelessWidget {

@@ -48,15 +48,30 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _handleLogin() {
-    if (_formKey.currentState!.validate()) {
-      context.read<AuthBloc>().add(
-        AuthLoginRequested(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
+  if (_formKey.currentState!.validate()) {
+    // Close any existing keyboard
+    FocusScope.of(context).unfocus();
+    
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(
+          color: AppColors.electricPurple,
         ),
-      );
-    }
+      ),
+    );
+    
+    // Trigger login
+    context.read<AuthBloc>().add(
+      AuthLoginRequested(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      ),
+    );
   }
+}
 
   void _showLoadingDialog() {
     showDialog(
