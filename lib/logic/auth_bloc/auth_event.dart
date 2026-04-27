@@ -61,9 +61,9 @@ class AuthStaffSignUpRequested extends AuthEvent {
   final String staffId;
   final String faculty;
   final String department;
-  final String designation;        // ✅ Added
-  final String phone;               // ✅ Added
-  final String? officeLocation;     // ✅ Added
+  final String designation;        
+  final String phone;               
+  final String? officeLocation;     
 
   const AuthStaffSignUpRequested({
     required this.email,
@@ -72,15 +72,15 @@ class AuthStaffSignUpRequested extends AuthEvent {
     required this.staffId,
     required this.faculty,
     required this.department,
-    required this.designation,       // ✅ Added
-    required this.phone,              // ✅ Added
-    this.officeLocation,              // ✅ Added
+    required this.designation,       
+    required this.phone,            
+    this.officeLocation,             
   });
   
   @override
   List<Object?> get props => [
     email, password, fullName, staffId, 
-    faculty, department, designation, phone, officeLocation  // ✅ Added to props
+    faculty, department, designation, phone, officeLocation  
   ];
 }
 

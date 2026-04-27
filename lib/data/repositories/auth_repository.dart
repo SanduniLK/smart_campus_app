@@ -10,7 +10,7 @@ abstract class AuthRepository {
 
   // Student Sign Up
   Future<UserModel?> signUpStudent({
-    required String email,
+   required String email,
     required String password,
     required String fullName,
     required String indexNumber,
@@ -25,12 +25,15 @@ abstract class AuthRepository {
 
   // Staff Sign Up
   Future<UserModel?> signUpStaff({
-    required String email,
+     required String email,
     required String password,
     required String fullName,
     required String staffId,
-    required String faculty,        
-    required String department, 
+    required String faculty,
+    required String department,
+    required String designation,
+    required String phone,
+    String? officeLocation,
   });
 
   // Email Verification

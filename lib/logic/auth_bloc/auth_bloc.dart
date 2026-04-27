@@ -99,6 +99,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         staffId: event.staffId,
         faculty: event.faculty,
         department: event.department,
+        designation: event.designation,
+        phone: event.phone,
+        officeLocation: event.officeLocation,
       );
       
       if (user != null) {

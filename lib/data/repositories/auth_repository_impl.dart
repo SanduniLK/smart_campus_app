@@ -109,6 +109,9 @@ class AuthRepositoryImpl implements AuthRepository {
     required String staffId,
     required String faculty,
     required String department,
+    required String designation,
+    required String phone,
+    String? officeLocation,
   }) async {
     try {
       // 1. Create user in Firebase
