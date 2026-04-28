@@ -44,12 +44,13 @@ class FirebaseService {
         await user.updateDisplayName(fullName);
         await user.reload();
 
-        // Save to SQLite
+        // Save to SQLite - REMOVED staffType for students
         await _db.insertOrUpdateUser({
           'uid': user.uid,
           'email': email,
           'fullName': fullName,
           'role': ROLE_STUDENT,
+          // 'staffType' is NOT for students - REMOVE THIS LINE
           'isEmailVerified': 0,
           'createdAt': DateTime.now().toIso8601String(),
         });
@@ -66,7 +67,7 @@ class FirebaseService {
           'intake': intake,
         });
 
-        // SEND EMAIL VERIFICATION - FIXED
+        // Send email verification
         await sendEmailVerification();
         print('✅ Verification email sent to: $email');
       }
@@ -81,67 +82,71 @@ class FirebaseService {
     }
   }
 
-  // Sign Up Staff with Faculty and Department
-Future<User?> signUpStaff({
-  required String email,
-  required String password,
-  required String fullName,
-  required String staffId,
-  required String faculty,        // Added faculty
-  required String department,      // Added department
- 
-}) async {
-  try {
-    print('📝 Creating staff account for: $email');
-    
-    UserCredential result = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    User? user = result.user;
-
-    if (user != null) {
-      print('✅ User created in Firebase: ${user.uid}');
+  // Sign Up Staff
+  Future<User?> signUpStaff({
+    required String email,
+    required String password,
+    required String fullName,
+    required String staffId,
+    required String faculty,
+    required String department,
+    String? staffType,
+  }) async {
+    try {
+      print('📝 Creating staff account for: $email');
+      print('📝 Staff Type: $staffType');
       
-      await user.updateDisplayName(fullName);
-      await user.reload();
+      UserCredential result = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-      // Save to SQLite - Users table
-      await _db.insertOrUpdateUser({
-        'uid': user.uid,
-        'email': email,
-        'fullName': fullName,
-        'role': ROLE_STAFF,
-        'isEmailVerified': 0,
-        'createdAt': DateTime.now().toIso8601String(),
-      });
+      User? user = result.user;
 
-      // Save to SQLite - Staff table with faculty and department
-      await _db.insertStaffDetails({
-        'uid': user.uid,
-        'staffId': staffId,
-        'faculty': faculty,
-        'department': department,
+      if (user != null) {
+        print('✅ User created in Firebase: ${user.uid}');
         
-      });
+        await user.updateDisplayName(fullName);
+        await user.reload();
 
-      // Send email verification
-      await sendEmailVerification();
-      print('✅ Verification email sent to: $email');
+        // Save to SQLite - Users table (staffType only for staff)
+        await _db.insertOrUpdateUser({
+          'uid': user.uid,
+          'email': email,
+          'fullName': fullName,
+          'role': ROLE_STAFF,
+          'staffType': staffType ?? 'academic',  // This is fine for staff
+          'isEmailVerified': 0,
+          'createdAt': DateTime.now().toIso8601String(),
+        });
+
+        // Save to SQLite - Staff table
+        await _db.insertStaffDetails({
+          'uid': user.uid,
+          'staffId': staffId,
+          'faculty': faculty,
+          'department': department,
+          'staffType': staffType ?? 'academic',
+          'position': '',  // Can be updated later
+          'workLocation': '',  // Can be updated later
+        });
+
+        // Send email verification
+        await sendEmailVerification();
+        print('✅ Verification email sent to: $email');
+      }
+
+      return user;
+    } on FirebaseAuthException catch (e) {
+      print('❌ FirebaseAuthException: ${e.code} - ${e.message}');
+      throw _handleFirebaseAuthException(e);
+    } catch (e) {
+      print('❌ Unexpected error: $e');
+      throw 'An error occurred. Please try again.';
     }
-
-    return user;
-  } on FirebaseAuthException catch (e) {
-    print('❌ FirebaseAuthException: ${e.code} - ${e.message}');
-    throw _handleFirebaseAuthException(e);
-  } catch (e) {
-    print('❌ Unexpected error: $e');
-    throw 'An error occurred. Please try again.';
   }
-}
 
-  // Send Email Verification - FIXED VERSION
+  // Send Email Verification
   Future<void> sendEmailVerification() async {
     try {
       User? user = _auth.currentUser;

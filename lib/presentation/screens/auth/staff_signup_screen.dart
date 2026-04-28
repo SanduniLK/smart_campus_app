@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
 import 'package:smart_campus_app/core/services/firebase_service.dart';
 import 'package:smart_campus_app/presentation/widgets/email_verification_dialog.dart';
-
 import 'package:smart_campus_app/presentation/widgets/splash_screen/animated_glass_background.dart';
 
 class StaffSignUpScreen extends StatefulWidget {
@@ -16,14 +15,24 @@ class StaffSignUpScreen extends StatefulWidget {
 
 class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
   final _formKey = GlobalKey<FormState>();
+  
+  // Controllers for form fields
   final _staffIdController = TextEditingController();
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _facultyController = TextEditingController();
-  final _departmentController = TextEditingController();
-
+  final _positionController = TextEditingController();
+  final _workLocationController = TextEditingController();
+  
+  // Selection fields
+  String _staffType = 'academic';
+  String? _selectedTitle;
+  String? _selectedFaculty;
+  String? _selectedDepartment;
+  String? _selectedDivision;
+  
+  // Focus nodes
   final _staffIdFocusNode = FocusNode();
   final _fullNameFocusNode = FocusNode();
   final _emailFocusNode = FocusNode();
@@ -36,6 +45,72 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
   bool _isLoading = false;
 
   late final FirebaseService _firebaseService;
+
+  // Data for dropdowns
+  final List<String> _titles = [
+    'Professor', 'Dr.', 'Mr.', 'Ms.', 'Mrs.', 'Eng.', 'Prof. Dr.'
+  ];
+  
+  final List<String> _faculties = [
+    'Faculty of Technology',
+    'Faculty of Engineering',
+    'Faculty of Science',
+    'Faculty of Medicine',
+    'Faculty of Business',
+    'Faculty of Humanities',
+    'Faculty of Law',
+    'Faculty of Agriculture',
+  ];
+  
+  final Map<String, List<String>> _departmentsByFaculty = {
+    'Faculty of Technology': [
+      'Department of ICT',
+      'Department of Electrical Engineering',
+      'Department of Mechanical Engineering',
+      'Department of Civil Engineering',
+    ],
+    'Faculty of Engineering': [
+      'Department of Computer Engineering',
+      'Department of Electronics',
+      'Department of Mechanical Engineering',
+      'Department of Civil Engineering',
+    ],
+    'Faculty of Science': [
+      'Department of Mathematics',
+      'Department of Physics',
+      'Department of Chemistry',
+      'Department of Biology',
+    ],
+    'Faculty of Medicine': [
+      'Department of Anatomy',
+      'Department of Physiology',
+      'Department of Pharmacology',
+    ],
+    'Faculty of Business': [
+      'Department of Management',
+      'Department of Finance',
+      'Department of Marketing',
+    ],
+    'Faculty of Humanities': [
+      'Department of English',
+      'Department of History',
+      'Department of Sociology',
+    ],
+    'Faculty of Law': [
+      'Department of Public Law',
+      'Department of Private Law',
+    ],
+    'Faculty of Agriculture': [
+      'Department of Crop Science',
+      'Department of Animal Science',
+    ],
+  };
+  
+  final List<String> _divisions = [
+    'Administration', 'Library Services', 'Security Services', 
+    'Finance Department', 'IT Support', 'Student Affairs',
+    'Human Resources', 'Maintenance Services', 'Transport Services',
+  ];
 
   @override
   void initState() {
@@ -50,6 +125,8 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _positionController.dispose();
+    _workLocationController.dispose();
     _staffIdFocusNode.dispose();
     _fullNameFocusNode.dispose();
     _emailFocusNode.dispose();
@@ -58,8 +135,10 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
     super.dispose();
   }
 
+  // Validators
   String? _validateStaffId(String? value) {
     if (value == null || value.isEmpty) return 'Staff ID is required';
+    if (value.length < 3) return 'Staff ID must be at least 3 characters';
     return null;
   }
 
@@ -71,7 +150,8 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
 
   String? _validateEmail(String? value) {
     if (value == null || value.isEmpty) return 'Email is required';
-    if (!value.contains('@') || !value.contains('.')) return 'Enter a valid email';
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value)) return 'Enter a valid email address';
     return null;
   }
 
@@ -87,40 +167,84 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
     return null;
   }
 
+  String? _validateTitle(String? value) {
+    if (_staffType == 'academic' && (value == null || value.isEmpty)) {
+      return 'Please select a title';
+    }
+    return null;
+  }
+
+  String? _validateFaculty(String? value) {
+    if (_staffType == 'academic' && (value == null || value.isEmpty)) {
+      return 'Please select a faculty';
+    }
+    return null;
+  }
+
+  String? _validateDepartment(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please select a department';
+    }
+    return null;
+  }
+
+  String? _validateDivision(String? value) {
+    if (_staffType == 'non_academic' && (value == null || value.isEmpty)) {
+      return 'Please select a division';
+    }
+    return null;
+  }
+
+  String? _validatePosition(String? value) {
+    if (_staffType == 'non_academic' && (value == null || value.isEmpty)) {
+      return 'Position is required';
+    }
+    return null;
+  }
+
+  String _getFullNameWithTitle() {
+    if (_staffType == 'academic' && _selectedTitle != null) {
+      return '${_selectedTitle} ${_fullNameController.text.trim()}';
+    }
+    return _fullNameController.text.trim();
+  }
+
   Future<void> _handleSignUp() async {
     if (_formKey.currentState!.validate() && _agreeToTerms) {
       setState(() => _isLoading = true);
       
       try {
+        final fullNameWithTitle = _getFullNameWithTitle();
+        
         final user = await _firebaseService.signUpStaff(
           email: _emailController.text.trim(),
           password: _passwordController.text,
-          fullName: _fullNameController.text.trim(),
+          fullName: fullNameWithTitle,
           staffId: _staffIdController.text.trim(),
-          faculty: _facultyController.text.trim(),
-          department: _departmentController.text.trim(),
+          faculty: _selectedFaculty ?? '',
+          department: _selectedDepartment ?? '',
+          staffType: _staffType,
         );
         
         setState(() => _isLoading = false);
         
         if (user != null && mounted) {
-          if (mounted) {
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => EmailVerificationDialog(
-                email: _emailController.text.trim(),
-                userRole: 'staff',
-                userData: {
-                  'staffId': _staffIdController.text.trim(),
-                },
-              ),
-            );
-          }
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => EmailVerificationDialog(
+              email: _emailController.text.trim(),
+              userRole: 'staff',
+              userData: {
+                'staffId': _staffIdController.text.trim(),
+                'staffType': _staffType,
+                'fullName': fullNameWithTitle,
+              },
+            ),
+          );
         }
       } catch (e) {
         setState(() => _isLoading = false);
-        
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -131,6 +255,14 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
           );
         }
       }
+    } else if (!_agreeToTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please agree to the Terms & Conditions'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -142,20 +274,18 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
         children: [
           const AnimatedGlassBackground(),
           Positioned.fill(
-            child: Container(
-              color: Colors.black.withValues(alpha: 0.2),
-            ),
+            child: Container(color: Colors.black.withValues(alpha: 0.2)),
           ),
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildBackButton(),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 20),
                   _buildHeader(),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 20),
                   _buildForm(),
                 ],
               ),
@@ -173,8 +303,8 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
         child: Container(
-          width: 48,
-          height: 48,
+          width: 45,
+          height: 45,
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: 0.3),
             border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
@@ -184,7 +314,6 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
             onPressed: () => Navigator.pop(context),
             icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
             padding: EdgeInsets.zero,
-            splashRadius: 24,
           ),
         ),
       ),
@@ -197,20 +326,12 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
       children: [
         Text(
           'Staff Registration',
-          style: GoogleFonts.poppins(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            shadows: const [Shadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 2))],
-          ),
+          style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 5),
         Text(
           'Create your staff account',
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            color: Colors.white.withValues(alpha: 0.9),
-          ),
+          style: GoogleFonts.poppins(fontSize: 14, color: Colors.white.withValues(alpha: 0.8)),
         ),
       ],
     );
@@ -223,7 +344,7 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: 0.4),
             border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
@@ -233,6 +354,8 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
             key: _formKey,
             child: Column(
               children: [
+                _buildStaffTypeRadios(),
+                const SizedBox(height: 20),
                 _buildTextField(
                   controller: _staffIdController,
                   focusNode: _staffIdFocusNode,
@@ -240,7 +363,11 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
                   icon: Icons.badge_rounded,
                   validator: _validateStaffId,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 15),
+                if (_staffType == 'academic') ...[
+                  _buildTitleDropdown(),
+                  const SizedBox(height: 15),
+                ],
                 _buildTextField(
                   controller: _fullNameController,
                   focusNode: _fullNameFocusNode,
@@ -248,7 +375,33 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
                   icon: Icons.person_outline_rounded,
                   validator: _validateFullName,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 15),
+                if (_staffType == 'academic') ...[
+                  _buildFacultyDropdown(),
+                  const SizedBox(height: 15),
+                ],
+                _buildDepartmentDropdown(),
+                const SizedBox(height: 15),
+                if (_staffType == 'non_academic') ...[
+                  _buildDivisionDropdown(),
+                  const SizedBox(height: 15),
+                  _buildTextField(
+                    controller: _positionController,
+                    focusNode: FocusNode(),
+                    label: 'Position',
+                    icon: Icons.work_outline,
+                    validator: _validatePosition,
+                  ),
+                  const SizedBox(height: 15),
+                  _buildTextField(
+                    controller: _workLocationController,
+                    focusNode: FocusNode(),
+                    label: 'Work Location',
+                    icon: Icons.location_on_outlined,
+                    validator: (value) => null,
+                  ),
+                  const SizedBox(height: 15),
+                ],
                 _buildTextField(
                   controller: _emailController,
                   focusNode: _emailFocusNode,
@@ -257,7 +410,7 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
                   validator: _validateEmail,
                   keyboardType: TextInputType.emailAddress,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 15),
                 _buildTextField(
                   controller: _passwordController,
                   focusNode: _passwordFocusNode,
@@ -268,14 +421,13 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: Colors.white.withValues(alpha: 0.8),
                       size: 20,
                     ),
                     onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                    splashRadius: 20,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 15),
                 _buildTextField(
                   controller: _confirmPasswordController,
                   focusNode: _confirmPasswordFocusNode,
@@ -286,20 +438,198 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscureConfirmPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: Colors.white.withValues(alpha: 0.8),
                       size: 20,
                     ),
                     onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-                    splashRadius: 20,
                   ),
                 ),
                 const SizedBox(height: 20),
                 _buildTermsCheckbox(),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 _buildSignUpButton(),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+ Widget _buildStaffTypeRadios() {
+  return Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.black.withValues(alpha: 0.3),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
+    ),
+    child: Row(
+      children: [
+        // Academic Radio - with Expanded to prevent overflow
+        Expanded(
+          child: Row(
+            children: [
+              Radio<String>(
+                value: 'academic',
+                groupValue: _staffType,
+                onChanged: (value) {
+                  setState(() {
+                    _staffType = value!;
+                    _selectedFaculty = null;
+                    _selectedDepartment = null;
+                  });
+                },
+                activeColor: AppColors.electricPurple,
+              ),
+              Expanded(
+                child: Text(
+                  'Academic',
+                  style: GoogleFonts.poppins(fontSize: 14, color: Colors.white),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Non-Academic Radio - with Expanded to prevent overflow
+        Expanded(
+          child: Row(
+            children: [
+              Radio<String>(
+                value: 'non_academic',
+                groupValue: _staffType,
+                onChanged: (value) {
+                  setState(() {
+                    _staffType = value!;
+                    _selectedDivision = null;
+                  });
+                },
+                activeColor: AppColors.electricPurple,
+              ),
+              Expanded(
+                child: Text(
+                  'Non-Academic',
+                  style: GoogleFonts.poppins(fontSize: 14, color: Colors.white),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+  Widget _buildTitleDropdown() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: _selectedTitle,
+        hint: Text('Select Title', style: GoogleFonts.poppins(color: Colors.white.withValues(alpha: 0.6), fontSize: 14)),
+        dropdownColor: Colors.grey[900],
+        style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
+        items: _titles.map((title) => DropdownMenuItem(value: title, child: Text(title))).toList(),
+        onChanged: (value) => setState(() => _selectedTitle = value),
+        validator: _validateTitle,
+        decoration: InputDecoration(
+          prefixIcon: Icon(Icons.drive_file_rename_outline, color: Colors.white.withValues(alpha: 0.8), size: 20),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFacultyDropdown() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: _selectedFaculty,
+        hint: Text('Select Faculty', style: GoogleFonts.poppins(color: Colors.white.withValues(alpha: 0.6), fontSize: 14)),
+        dropdownColor: Colors.grey[900],
+        style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
+        items: _faculties.map((faculty) => DropdownMenuItem(value: faculty, child: Text(faculty))).toList(),
+        onChanged: (value) {
+          setState(() {
+            _selectedFaculty = value;
+            _selectedDepartment = null;
+          });
+        },
+        validator: _validateFaculty,
+        decoration: InputDecoration(
+          prefixIcon: Icon(Icons.school, color: Colors.white.withValues(alpha: 0.8), size: 20),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDepartmentDropdown() {
+    List<String> departments = [];
+    
+    if (_staffType == 'academic' && _selectedFaculty != null) {
+      departments = _departmentsByFaculty[_selectedFaculty] ?? [];
+    } else if (_staffType == 'non_academic') {
+      departments = [
+        'Administration Department', 'Finance Department', 'Human Resources',
+        'IT Services', 'Library Services', 'Security Services', 'Student Affairs',
+      ];
+    }
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: _selectedDepartment,
+        hint: Text('Select Department', style: GoogleFonts.poppins(color: Colors.white.withValues(alpha: 0.6), fontSize: 14)),
+        dropdownColor: Colors.grey[900],
+        style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
+        items: departments.map((dept) => DropdownMenuItem(value: dept, child: Text(dept))).toList(),
+        onChanged: (value) => setState(() => _selectedDepartment = value),
+        validator: _validateDepartment,
+        decoration: InputDecoration(
+          prefixIcon: Icon(Icons.business_center, color: Colors.white.withValues(alpha: 0.8), size: 20),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDivisionDropdown() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: _selectedDivision,
+        hint: Text('Select Division', style: GoogleFonts.poppins(color: Colors.white.withValues(alpha: 0.6), fontSize: 14)),
+        dropdownColor: Colors.grey[900],
+        style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
+        items: _divisions.map((division) => DropdownMenuItem(value: division, child: Text(division))).toList(),
+        onChanged: (value) => setState(() => _selectedDivision = value),
+        validator: _validateDivision,
+        decoration: InputDecoration(
+          prefixIcon: Icon(Icons.category, color: Colors.white.withValues(alpha: 0.8), size: 20),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
       ),
     );
@@ -335,9 +665,9 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
             validator: validator,
             decoration: InputDecoration(
               labelText: label,
-              labelStyle: GoogleFonts.poppins(color: Colors.white.withValues(alpha: 0.8), fontSize: 14),
+              labelStyle: GoogleFonts.poppins(color: Colors.white.withValues(alpha: 0.7), fontSize: 14),
               floatingLabelStyle: GoogleFonts.poppins(color: Colors.white, fontSize: 12),
-              prefixIcon: Icon(icon, color: Colors.white.withValues(alpha: 0.8), size: 20),
+              prefixIcon: Icon(icon, color: Colors.white.withValues(alpha: 0.7), size: 20),
               suffixIcon: suffixIcon,
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -384,15 +714,12 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [AppColors.electricPurple, AppColors.softMagenta],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: AppColors.electricPurple.withValues(alpha: 0.3),
-            blurRadius: 20,
-            spreadRadius: 2,
+            blurRadius: 15,
             offset: const Offset(0, 4),
           ),
         ],
@@ -422,8 +749,8 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
               child: Container(
-                width: 100,
-                height: 100,
+                width: 90,
+                height: 90,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.6),
