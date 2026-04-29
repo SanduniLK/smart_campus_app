@@ -1,7 +1,7 @@
 import 'package:smart_campus_app/core/services/database_service.dart';
 import 'package:smart_campus_app/data/models/time_table_model/course_model.dart';
 import 'package:smart_campus_app/data/models/time_table_model/timetable_slot_model.dart';
-import 'package:sqflite/sqflite.dart';
+
 
 class TimetableRepository {
   final DatabaseService _dbService = DatabaseService();

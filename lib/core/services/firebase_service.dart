@@ -13,7 +13,7 @@ class FirebaseService {
   User? get currentUser => _auth.currentUser;
 
   // ==================== SIGN IN ====================
-  Future<User?> signInWithEmailAndPassword({
+  Future<Map<String, dynamic>?> signInWithEmailAndPassword({
     required String email,
     required String password,
   }) async {
@@ -22,47 +22,49 @@ class FirebaseService {
         email: email,
         password: password,
       );
-      return result.user;
+
+      final user = result.user;
+      
+      if (user != null) {
+        await user.reload();
+        
+        // ✅ Get user data from Firestore
+        final userDoc = await _firestore.collection('users').doc(user.uid).get();
+        
+        if (userDoc.exists) {
+          final userData = userDoc.data()!;
+          
+          // ✅ Sync to SQLite for offline cache
+          await _db.insertOrUpdateUser({
+            'uid': user.uid,
+            'email': user.email ?? email,
+            'fullName': userData['fullName'] ?? '',
+            'role': userData['role'] ?? ROLE_STUDENT,
+            'staffType': userData['staffType'],
+            'isEmailVerified': user.emailVerified ? 1 : 0,
+            'createdAt': userData['createdAt']?.toString() ?? DateTime.now().toIso8601String(),
+            'lastLoginAt': DateTime.now().toIso8601String(),
+            'phone': userData['phone'] ?? '',
+            'department': userData['department'] ?? '',
+          });
+          
+          return {
+            'uid': user.uid,
+            'email': user.email,
+            'fullName': userData['fullName'],
+            'role': userData['role'],
+            'staffType': userData['staffType'],
+            'phone': userData['phone'],
+            'department': userData['department'],
+            'isEmailVerified': user.emailVerified ? 1 : 0,
+          };
+        }
+      }
+      return null;
     } on FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthException(e);
     } catch (e) {
       throw 'An error occurred. Please try again.';
-    }
-  }
-
-  // ==================== GET CURRENT USER DATA ====================
-  Future<Map<String, dynamic>?> getCurrentUserData() async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      return await _db.getCompleteUserProfile(user.uid);
-    }
-    return null;
-  }
-
-  // ==================== REFRESH VERIFICATION STATUS ====================
-  Future<bool> refreshUserVerificationStatus() async {
-    try {
-      final user = _auth.currentUser;
-      if (user != null) {
-        await user.reload();
-        final isVerified = user.emailVerified;
-        await _db.updateEmailVerificationStatus(user.uid, isVerified);
-        print('🔄 Verification status: $isVerified');
-        return isVerified;
-      }
-      return false;
-    } catch (e) {
-      print('❌ Error refreshing: $e');
-      return false;
-    }
-  }
-
-  // ==================== SEND EMAIL VERIFICATION ====================
-  Future<void> sendEmailVerification() async {
-    final user = _auth.currentUser;
-    if (user != null && !user.emailVerified) {
-      await user.sendEmailVerification();
-      print('✅ Verification email sent');
     }
   }
 
@@ -81,6 +83,7 @@ class FirebaseService {
     required String intake,
   }) async {
     try {
+      // 1. Create user in Firebase Auth
       final result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -92,6 +95,27 @@ class FirebaseService {
         await user.updateDisplayName(fullName);
         await user.reload();
 
+        // 2. ✅ Save to FIRESTORE (Cloud)
+        final userData = {
+          'uid': user.uid,
+          'email': email,
+          'fullName': fullName,
+          'role': ROLE_STUDENT,
+          'indexNumber': indexNumber,
+          'campusId': campusId,
+          'nic': nic,
+          'phone': phone,
+          'dob': dob,
+          'department': department,
+          'degree': degree,
+          'intake': intake,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        
+        await _firestore.collection('users').doc(user.uid).set(userData);
+
+        // 3. ✅ Save to SQLITE (Local Cache)
         await _db.insertOrUpdateUser({
           'uid': user.uid,
           'email': email,
@@ -100,7 +124,7 @@ class FirebaseService {
           'staffType': null,
           'isEmailVerified': 0,
           'createdAt': DateTime.now().toIso8601String(),
-          'lastLoginAt': '', 
+          'lastLoginAt': null,
           'phone': phone,
           'department': department,
         });
@@ -119,8 +143,10 @@ class FirebaseService {
           'batchYear': int.tryParse(intake) ?? 2024,
         });
 
+        // 4. Send email verification
         await user.sendEmailVerification();
-        print('✅ STUDENT account created: $email');
+        
+        print('✅ STUDENT account created in Firebase & Firestore: $email');
       }
 
       return user;
@@ -142,6 +168,7 @@ class FirebaseService {
     String? staffType,
   }) async {
     try {
+      // 1. Create user in Firebase Auth
       final result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -153,6 +180,23 @@ class FirebaseService {
         await user.updateDisplayName(fullName);
         await user.reload();
 
+        // 2. ✅ Save to FIRESTORE (Cloud)
+        final userData = {
+          'uid': user.uid,
+          'email': email,
+          'fullName': fullName,
+          'role': ROLE_STAFF,
+          'staffType': staffType ?? 'academic',
+          'staffId': staffId,
+          'faculty': faculty,
+          'department': department,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        
+        await _firestore.collection('users').doc(user.uid).set(userData);
+
+        // 3. ✅ Save to SQLITE (Local Cache)
         await _db.insertOrUpdateUser({
           'uid': user.uid,
           'email': email,
@@ -176,8 +220,10 @@ class FirebaseService {
           'workLocation': '',
         });
 
+        // 4. Send email verification
         await user.sendEmailVerification();
-        print('✅ STAFF account created: $email');
+        
+        print('✅ STAFF account created in Firebase & Firestore: $email');
       }
 
       return user;
@@ -188,13 +234,57 @@ class FirebaseService {
     }
   }
 
-  // ==================== SIGN OUT ====================
-  Future<void> signOut() async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      await _db.recordLogout(user.uid);
+  // ==================== GET USER FROM FIRESTORE ====================
+  Future<Map<String, dynamic>?> getUserFromFirestore(String uid) async {
+    try {
+      final doc = await _firestore.collection('users').doc(uid).get();
+      if (doc.exists) {
+        return doc.data();
+      }
+      return null;
+    } catch (e) {
+      print('❌ Error getting user from Firestore: $e');
+      return null;
     }
-    await _auth.signOut();
+  }
+
+  // ==================== UPDATE USER IN FIRESTORE ====================
+  Future<void> updateUserInFirestore(String uid, Map<String, dynamic> data) async {
+    try {
+      await _firestore.collection('users').doc(uid).update({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      print('✅ User updated in Firestore');
+    } catch (e) {
+      print('❌ Error updating user in Firestore: $e');
+      throw e;
+    }
+  }
+
+  // ==================== GET ALL USERS FROM FIRESTORE ====================
+  Future<List<QueryDocumentSnapshot>> getAllUsers() async {
+    try {
+      final snapshot = await _firestore.collection('users').get();
+      return snapshot.docs;
+    } catch (e) {
+      print('❌ Error getting users: $e');
+      return [];
+    }
+  }
+
+  // ==================== GET USERS BY ROLE ====================
+  Future<List<QueryDocumentSnapshot>> getUsersByRole(String role) async {
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .where('role', isEqualTo: role)
+          .get();
+      return snapshot.docs;
+    } catch (e) {
+      print('❌ Error getting users by role: $e');
+      return [];
+    }
   }
 
   // ==================== CHECK EMAIL VERIFIED ====================
@@ -205,6 +295,91 @@ class FirebaseService {
       return user.emailVerified;
     }
     return false;
+  }
+
+  // ==================== REFRESH VERIFICATION STATUS ====================
+  Future<bool> refreshUserVerificationStatus() async {
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        await user.reload();
+        final isVerified = user.emailVerified;
+        
+        // Update both SQLite and Firestore
+        await _db.updateEmailVerificationStatus(user.uid, isVerified);
+        await _firestore.collection('users').doc(user.uid).update({
+          'isEmailVerified': isVerified,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        
+        return isVerified;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // ==================== SEND EMAIL VERIFICATION ====================
+  Future<void> sendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user != null && !user.emailVerified) {
+      await user.sendEmailVerification();
+    }
+  }
+
+  // ==================== GET CURRENT USER DATA ====================
+  Future<Map<String, dynamic>?> getCurrentUserData() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      // Try Firestore first, fallback to SQLite
+      final firestoreData = await getUserFromFirestore(user.uid);
+      if (firestoreData != null) {
+        return firestoreData;
+      }
+      return await _db.getCompleteUserProfile(user.uid);
+    }
+    return null;
+  }
+Future<void> deleteUserFromFirestore(String userId) async {
+  try {
+    await _firestore.collection('users').doc(userId).delete();
+    print('✅ User deleted from Firestore');
+  } catch (e) {
+    print('❌ Error deleting from Firestore: $e');
+    throw e;
+  }
+}
+Future<void> sendPasswordResetEmail(String email) async {
+  try {
+    await _auth.sendPasswordResetEmail(email: email);
+    print('✅ Password reset email sent to: $email');
+  } on FirebaseAuthException catch (e) {
+    throw _handlePasswordResetError(e);
+  } catch (e) {
+    throw 'An error occurred. Please try again.';
+  }
+}
+
+String _handlePasswordResetError(FirebaseAuthException e) {
+  switch (e.code) {
+    case 'user-not-found':
+      return 'No account found with this email address.';
+    case 'invalid-email':
+      return 'Invalid email address format.';
+    case 'too-many-requests':
+      return 'Too many requests. Please try again later.';
+    default:
+      return 'Failed to send password reset email. Please try again.';
+  }
+}
+  // ==================== SIGN OUT ====================
+  Future<void> signOut() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      await _db.recordLogout(user.uid);
+    }
+    await _auth.signOut();
   }
 
   // ==================== HANDLE ERRORS ====================

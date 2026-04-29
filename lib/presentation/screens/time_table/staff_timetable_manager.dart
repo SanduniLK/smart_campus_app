@@ -15,7 +15,7 @@ class StaffTimetableManager extends StatefulWidget {
 }
 
 class _StaffTimetableManagerState extends State<StaffTimetableManager> {
-  final List<String> _days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
   int _selectedDay = DateTime.now().weekday;
 
   @override

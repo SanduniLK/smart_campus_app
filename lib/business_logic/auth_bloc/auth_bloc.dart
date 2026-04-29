@@ -4,10 +4,10 @@ import 'auth_event.dart';
 import 'auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  final AuthRepository _authRepository;
+  final AuthRepository _authRepository;  // ✅ Make sure this is defined
 
   AuthBloc({required AuthRepository authRepository})
-      : _authRepository = authRepository,
+      : _authRepository = authRepository,  // ✅ Assign it here
         super(AuthInitial()) {
     on<AuthCheckStatusRequested>(_onCheckStatus);
     on<AuthLoginRequested>(_onLogin);
@@ -15,6 +15,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthStaffSignUpRequested>(_onStaffSignUp);
     on<AuthLogoutRequested>(_onLogout);
     on<AuthEmailVerified>(_onEmailVerified);
+    on<AuthResetPasswordRequested>(_onResetPassword);  // ✅ Add this
   }
 
   Future<void> _onCheckStatus(
@@ -36,44 +37,36 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
- // lib/business_logic/auth_bloc/auth_bloc.dart
-
-Future<void> _onLogin(
-  AuthLoginRequested event,
-  Emitter<AuthState> emit,
-) async {
-  emit(AuthLoading());
-  
-  try {
-    // First, check if user exists in Firebase
-    final user = await _authRepository.signIn(
-      email: event.email,
-      password: event.password,
-    );
+  Future<void> _onLogin(
+    AuthLoginRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
     
-    if (user != null) {
-      print('✅ User logged in: ${user.id}');
-      print('✅ User role: ${user.role}');
-      print('✅ Email verified: ${user.isEmailVerified}');
+    try {
+      final user = await _authRepository.signIn(
+        email: event.email,
+        password: event.password,
+      );
       
-      // If email is not verified, check again from Firebase
-      if (!user.isEmailVerified) {
-        final freshStatus = await _authRepository.refreshEmailVerificationStatus();
-        if (!freshStatus) {
-          emit(AuthEmailVerificationRequired(user.email));
-          return;
+      if (user != null) {
+        // Check if email is verified
+        if (!user.isEmailVerified) {
+          final freshStatus = await _authRepository.refreshEmailVerificationStatus();
+          if (!freshStatus) {
+            emit(AuthEmailVerificationRequired(user.email));
+            return;
+          }
         }
+        emit(AuthAuthenticated(user));
+      } else {
+        emit(AuthError('Invalid email or password'));
       }
-      
-      emit(AuthAuthenticated(user));
-    } else {
-      emit(AuthError('Invalid email or password'));
+    } catch (e) {
+      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
     }
-  } catch (e) {
-    print('❌ Login error: $e');
-    emit(AuthError(e.toString().replaceAll('Exception: ', '')));
   }
-}
+
   Future<void> _onStudentSignUp(
     AuthStudentSignUpRequested event,
     Emitter<AuthState> emit,
@@ -117,7 +110,6 @@ Future<void> _onLogin(
         staffId: event.staffId,
         faculty: event.faculty,
         department: event.department,
-        
       );
       
       if (user != null) {
@@ -129,18 +121,18 @@ Future<void> _onLogin(
   }
 
   Future<void> _onLogout(
-    AuthLogoutRequested event,
-    Emitter<AuthState> emit,
-  ) async {
-    emit(AuthLoading());
-    
-    try {
-      await _authRepository.signOut();
-      emit(AuthUnauthenticated());
-    } catch (e) {
-      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
-    }
+  AuthLogoutRequested event,
+  Emitter<AuthState> emit,
+) async {
+  emit(AuthLoading());
+  
+  try {
+    await _authRepository.signOut();
+    emit(AuthUnauthenticated());
+  } catch (e) {
+    emit(AuthError(e.toString().replaceAll('Exception: ', '')));
   }
+}
 
   Future<void> _onEmailVerified(
     AuthEmailVerified event,
@@ -155,6 +147,21 @@ Future<void> _onLogin(
       } else {
         emit(AuthUnauthenticated());
       }
+    } catch (e) {
+      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  // ✅ Add this method
+  Future<void> _onResetPassword(
+    AuthResetPasswordRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    
+    try {
+      await _authRepository.resetPassword(event.email);
+      emit(AuthPasswordResetSent(event.email));
     } catch (e) {
       emit(AuthError(e.toString().replaceAll('Exception: ', '')));
     }
