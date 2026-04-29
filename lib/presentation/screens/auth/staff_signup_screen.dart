@@ -223,7 +223,7 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
           staffId: _staffIdController.text.trim(),
           faculty: _selectedFaculty ?? '',
           department: _selectedDepartment ?? '',
-          staffType: _staffType,
+          
         );
         
         setState(() => _isLoading = false);

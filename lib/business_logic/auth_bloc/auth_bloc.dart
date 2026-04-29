@@ -36,26 +36,44 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  Future<void> _onLogin(
-    AuthLoginRequested event,
-    Emitter<AuthState> emit,
-  ) async {
-    emit(AuthLoading());
-    
-    try {
-      final user = await _authRepository.signIn(
-        email: event.email,
-        password: event.password,
-      );
-      
-      if (user != null) {
-        emit(AuthAuthenticated(user));
-      }
-    } catch (e) {
-      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
-    }
-  }
+ // lib/business_logic/auth_bloc/auth_bloc.dart
 
+Future<void> _onLogin(
+  AuthLoginRequested event,
+  Emitter<AuthState> emit,
+) async {
+  emit(AuthLoading());
+  
+  try {
+    // First, check if user exists in Firebase
+    final user = await _authRepository.signIn(
+      email: event.email,
+      password: event.password,
+    );
+    
+    if (user != null) {
+      print('✅ User logged in: ${user.id}');
+      print('✅ User role: ${user.role}');
+      print('✅ Email verified: ${user.isEmailVerified}');
+      
+      // If email is not verified, check again from Firebase
+      if (!user.isEmailVerified) {
+        final freshStatus = await _authRepository.refreshEmailVerificationStatus();
+        if (!freshStatus) {
+          emit(AuthEmailVerificationRequired(user.email));
+          return;
+        }
+      }
+      
+      emit(AuthAuthenticated(user));
+    } else {
+      emit(AuthError('Invalid email or password'));
+    }
+  } catch (e) {
+    print('❌ Login error: $e');
+    emit(AuthError(e.toString().replaceAll('Exception: ', '')));
+  }
+}
   Future<void> _onStudentSignUp(
     AuthStudentSignUpRequested event,
     Emitter<AuthState> emit,
@@ -99,9 +117,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         staffId: event.staffId,
         faculty: event.faculty,
         department: event.department,
-        designation: event.designation,
-        phone: event.phone,
-        officeLocation: event.officeLocation,
+        
       );
       
       if (user != null) {

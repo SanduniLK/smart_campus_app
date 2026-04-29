@@ -3,10 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
-import 'package:smart_campus_app/logic/auth_bloc/auth_bloc.dart';
-import 'package:smart_campus_app/logic/auth_bloc/auth_state.dart';
+import 'package:smart_campus_app/business_logic/auth_bloc/auth_bloc.dart';
+import 'package:smart_campus_app/business_logic/auth_bloc/auth_state.dart';
 import 'package:smart_campus_app/presentation/widgets/glass_card.dart';
 import 'package:smart_campus_app/data/models/user_model.dart';
+import 'package:smart_campus_app/presentation/screens/time_table/staff_timetable_manager.dart';
+
 
 class StaffDashboardScreen extends StatelessWidget {
   const StaffDashboardScreen({super.key});
@@ -49,12 +51,12 @@ class StaffDashboardScreen extends StatelessWidget {
             const SizedBox(height: 24),
             
             // Quick Actions
-            _buildQuickActions(),
+            _buildQuickActions(context),
             
             const SizedBox(height: 24),
             
             // Today's Schedule
-            _buildTodaySchedule(),
+            _buildTodaySchedule(context),
             
             const SizedBox(height: 24),
             
@@ -64,7 +66,7 @@ class StaffDashboardScreen extends StatelessWidget {
             const SizedBox(height: 24),
             
             // Recent Announcements
-            _buildRecentAnnouncements(),
+            _buildRecentAnnouncements(context),
           ],
         ),
       ),
@@ -208,7 +210,7 @@ class StaffDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickActions() {
+  Widget _buildQuickActions(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -228,7 +230,10 @@ class StaffDashboardScreen extends StatelessWidget {
                 Icons.post_add_rounded,
                 'Announcement',
                 AppColors.electricPurple,
-                () {},
+                () {
+                  // Navigate to Post Announcement
+                  
+                },
               ),
             ),
             const SizedBox(width: 12),
@@ -237,7 +242,10 @@ class StaffDashboardScreen extends StatelessWidget {
                 Icons.event_rounded,
                 'Create Event',
                 AppColors.softMagenta,
-                () {},
+                () {
+                  // Navigate to Create Event
+                 
+                },
               ),
             ),
             const SizedBox(width: 12),
@@ -246,7 +254,12 @@ class StaffDashboardScreen extends StatelessWidget {
                 Icons.assignment_turned_in_rounded,
                 'Take Attendance',
                 AppColors.vibrantYellow,
-                () {},
+                () {
+                  // Navigate to Take Attendance (QR Scanner)
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('QR Scanner Coming Soon')),
+                  );
+                },
               ),
             ),
           ],
@@ -259,7 +272,13 @@ class StaffDashboardScreen extends StatelessWidget {
                 Icons.schedule_rounded,
                 'Timetable',
                 AppColors.electricPurple,
-                () {},
+                () {
+                  // ✅ NAVIGATE TO TIMETABLE MANAGEMENT
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const StaffTimetableManager()),
+                  );
+                },
               ),
             ),
             const SizedBox(width: 12),
@@ -268,7 +287,11 @@ class StaffDashboardScreen extends StatelessWidget {
                 Icons.upload_file_rounded,
                 'Upload Notes',
                 AppColors.softMagenta,
-                () {},
+                () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Upload Notes Coming Soon')),
+                  );
+                },
               ),
             ),
             const SizedBox(width: 12),
@@ -277,7 +300,11 @@ class StaffDashboardScreen extends StatelessWidget {
                 Icons.grade_rounded,
                 'Marks Entry',
                 AppColors.vibrantYellow,
-                () {},
+                () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Marks Entry Coming Soon')),
+                  );
+                },
               ),
             ),
           ],
@@ -309,7 +336,7 @@ class StaffDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTodaySchedule() {
+  Widget _buildTodaySchedule(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -325,7 +352,13 @@ class StaffDashboardScreen extends StatelessWidget {
               ),
             ),
             TextButton(
-              onPressed: () {},
+              onPressed: () {
+                // ✅ NAVIGATE TO FULL TIMETABLE VIEW
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const StaffTimetableManager()),
+                );
+              },
               child: Text(
                 'View All',
                 style: GoogleFonts.poppins(
@@ -344,6 +377,12 @@ class StaffDashboardScreen extends StatelessWidget {
           'Room 203',
           'Year 2 Semester 1',
           isNext: true,
+          onTap: () {
+            // Navigate to edit this schedule
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Edit Schedule Coming Soon')),
+            );
+          },
         ),
         const SizedBox(height: 12),
         _buildScheduleCard(
@@ -352,6 +391,11 @@ class StaffDashboardScreen extends StatelessWidget {
           '11:00 - 12:30',
           'Lab 105',
           'Year 3 Semester 2',
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Edit Schedule Coming Soon')),
+            );
+          },
         ),
         const SizedBox(height: 12),
         _buildScheduleCard(
@@ -360,6 +404,11 @@ class StaffDashboardScreen extends StatelessWidget {
           '14:00 - 15:30',
           'Room 301',
           'Year 4 Semester 1',
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Edit Schedule Coming Soon')),
+            );
+          },
         ),
       ],
     );
@@ -372,114 +421,118 @@ class StaffDashboardScreen extends StatelessWidget {
     String room,
     String batch, {
     bool isNext = false,
+    VoidCallback? onTap,
   }) {
-    return GlassCard(
-      padding: const EdgeInsets.all(16),
-      borderColor: isNext ? AppColors.vibrantYellow : null,
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 60,
-            decoration: BoxDecoration(
-              color: isNext ? AppColors.vibrantYellow : AppColors.electricPurple,
-              borderRadius: BorderRadius.circular(2),
+    return GestureDetector(
+      onTap: onTap,
+      child: GlassCard(
+        padding: const EdgeInsets.all(16),
+        borderColor: isNext ? AppColors.vibrantYellow : null,
+        child: Row(
+          children: [
+            Container(
+              width: 4,
+              height: 60,
+              decoration: BoxDecoration(
+                color: isNext ? AppColors.vibrantYellow : AppColors.electricPurple,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      code,
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isNext ? AppColors.vibrantYellow : AppColors.electricPurple,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: (isNext ? AppColors.vibrantYellow : AppColors.electricPurple)
-                            .withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        batch,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        code,
                         style: GoogleFonts.poppins(
-                          fontSize: 8,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
                           color: isNext ? AppColors.vibrantYellow : AppColors.electricPurple,
-                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
-                    if (isNext)
                       const SizedBox(width: 8),
-                    if (isNext)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppColors.vibrantYellow.withValues(alpha: 0.2),
+                          color: (isNext ? AppColors.vibrantYellow : AppColors.electricPurple)
+                              .withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          'NEXT',
+                          batch,
                           style: GoogleFonts.poppins(
                             fontSize: 8,
-                            color: AppColors.vibrantYellow,
+                            color: isNext ? AppColors.vibrantYellow : AppColors.electricPurple,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                  ],
-                ),
-                Text(
-                  course,
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
+                      if (isNext)
+                        const SizedBox(width: 8),
+                      if (isNext)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.vibrantYellow.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'NEXT',
+                            style: GoogleFonts.poppins(
+                              fontSize: 8,
+                              color: AppColors.vibrantYellow,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.access_time, size: 10, color: Colors.white70),
-                    const SizedBox(width: 4),
-                    Text(
-                      time,
-                      style: GoogleFonts.poppins(fontSize: 10, color: Colors.white70),
+                  Text(
+                    course,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
                     ),
-                    const SizedBox(width: 12),
-                    Icon(Icons.location_on, size: 10, color: Colors.white70),
-                    const SizedBox(width: 4),
-                    Text(
-                      room,
-                      style: GoogleFonts.poppins(fontSize: 10, color: Colors.white70),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.access_time, size: 10, color: Colors.white70),
+                      const SizedBox(width: 4),
+                      Text(
+                        time,
+                        style: GoogleFonts.poppins(fontSize: 10, color: Colors.white70),
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(Icons.location_on, size: 10, color: Colors.white70),
+                      const SizedBox(width: 4),
+                      Text(
+                        room,
+                        style: GoogleFonts.poppins(fontSize: 10, color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.electricPurple.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.electricPurple.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.electricPurple,
+                size: 20,
+              ),
             ),
-            child: const Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.electricPurple,
-              size: 20,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -620,7 +673,7 @@ class StaffDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRecentAnnouncements() {
+  Widget _buildRecentAnnouncements(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -636,7 +689,10 @@ class StaffDashboardScreen extends StatelessWidget {
               ),
             ),
             TextButton(
-              onPressed: () {},
+              onPressed: () {
+                // Navigate to Post Announcement
+                
+              },
               child: Text(
                 'Post New',
                 style: GoogleFonts.poppins(

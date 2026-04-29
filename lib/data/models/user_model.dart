@@ -6,6 +6,7 @@ class UserModel {
   final String email;
   final String fullName;
   final String role; // 'student' or 'staff'
+  final bool isEmailVerified; // ✅ ADD THIS FIELD
   
   // Student specific fields
   final String? indexNumber;
@@ -22,6 +23,7 @@ class UserModel {
   final String? faculty;
   final String? designation;
   final String? officeLocation;
+  final String? staffType; // ✅ ADD THIS FIELD (academic/non_academic)
   
   final DateTime? createdAt;
   final DateTime? lastLogin;
@@ -31,6 +33,7 @@ class UserModel {
     required this.email,
     required this.fullName,
     required this.role,
+    this.isEmailVerified = false, // ✅ ADD WITH DEFAULT
     this.indexNumber,
     this.campusId,
     this.nic,
@@ -43,17 +46,19 @@ class UserModel {
     this.faculty,
     this.designation,
     this.officeLocation,
+    this.staffType, // ✅ ADD
     this.createdAt,
     this.lastLogin,
   });
 
-  // Convert to Map (for Firestore)
+  // Convert to Map (for SQLite/Firestore)
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'email': email,
       'fullName': fullName,
       'role': role,
+      'isEmailVerified': isEmailVerified ? 1 : 0, // ✅ ADD
       'indexNumber': indexNumber,
       'campusId': campusId,
       'nic': nic,
@@ -66,18 +71,20 @@ class UserModel {
       'faculty': faculty,
       'designation': designation,
       'officeLocation': officeLocation,
+      'staffType': staffType, // ✅ ADD
       'createdAt': createdAt?.toIso8601String(),
       'lastLogin': lastLogin?.toIso8601String(),
     };
   }
 
-  // Create from Map (for Firestore)
+  // Create from Map (for SQLite)
   factory UserModel.fromMap(Map<String, dynamic> map) {
     return UserModel(
-      id: map['id'] ?? '',
+      id: map['id'] ?? map['uid'] ?? '', // Support both 'id' and 'uid'
       email: map['email'] ?? '',
       fullName: map['fullName'] ?? '',
       role: map['role'] ?? 'student',
+      isEmailVerified: map['isEmailVerified'] == 1, // ✅ ADD
       indexNumber: map['indexNumber'],
       campusId: map['campusId'],
       nic: map['nic'],
@@ -90,8 +97,9 @@ class UserModel {
       faculty: map['faculty'],
       designation: map['designation'],
       officeLocation: map['officeLocation'],
-      createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt']) : null,
-      lastLogin: map['lastLogin'] != null ? DateTime.parse(map['lastLogin']) : null,
+      staffType: map['staffType'], // ✅ ADD
+      createdAt: map['createdAt'] != null ? DateTime.tryParse(map['createdAt']) : null,
+      lastLogin: map['lastLogin'] != null ? DateTime.tryParse(map['lastLogin']) : null,
     );
   }
 
@@ -102,6 +110,7 @@ class UserModel {
       'email': email,
       'fullName': fullName,
       'role': role,
+      'isEmailVerified': isEmailVerified, // ✅ ADD
       'indexNumber': indexNumber,
       'campusId': campusId,
       'nic': nic,
@@ -114,6 +123,7 @@ class UserModel {
       'faculty': faculty,
       'designation': designation,
       'officeLocation': officeLocation,
+      'staffType': staffType, // ✅ ADD
       'createdAt': FieldValue.serverTimestamp(),
       'lastLogin': lastLogin != null ? Timestamp.fromDate(lastLogin!) : null,
     };
@@ -126,6 +136,7 @@ class UserModel {
       email: data['email'] ?? '',
       fullName: data['fullName'] ?? '',
       role: data['role'] ?? 'student',
+      isEmailVerified: data['isEmailVerified'] ?? false, // ✅ ADD
       indexNumber: data['indexNumber'],
       campusId: data['campusId'],
       nic: data['nic'],
@@ -138,6 +149,7 @@ class UserModel {
       faculty: data['faculty'],
       designation: data['designation'],
       officeLocation: data['officeLocation'],
+      staffType: data['staffType'], // ✅ ADD
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       lastLogin: (data['lastLogin'] as Timestamp?)?.toDate(),
     );
@@ -148,4 +160,10 @@ class UserModel {
   
   // Helper to check if user is staff
   bool get isStaff => role == 'staff';
+  
+  // Helper to check if user is academic staff
+  bool get isAcademicStaff => role == 'staff' && staffType == 'academic';
+  
+  // Helper to check if user is non-academic staff
+  bool get isNonAcademicStaff => role == 'staff' && staffType == 'non_academic';
 }

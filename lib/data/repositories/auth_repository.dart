@@ -1,52 +1,54 @@
 // lib/data/repositories/auth_repository.dart
-import 'package:firebase_auth/firebase_auth.dart' as firebase;
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:smart_campus_app/data/models/user_model.dart';
+import 'package:smart_campus_app/core/services/firebase_service.dart';
+import '../models/user_model.dart';
 
 class AuthRepository {
-  final firebase.FirebaseAuth _auth = firebase.FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseService _firebaseService;
 
-  // Sign In with email and password
+  AuthRepository({FirebaseService? firebaseService})
+      : _firebaseService = firebaseService ?? FirebaseService();
+
+  // ==================== SIGN IN ====================
   Future<UserModel?> signIn({
     required String email,
     required String password,
   }) async {
     try {
-      // Sign in with Firebase Auth
-      final userCredential = await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
+      // Sign in with Firebase
+      final user = await _firebaseService.signInWithEmailAndPassword(
+        email: email,
         password: password,
       );
-
-      if (userCredential.user != null) {
-        // Get user data from Firestore
-        final userDoc = await _firestore
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .get();
-
-        if (userDoc.exists) {
-          return UserModel.fromFirestore(userDoc);
-        } else {
-          // Create user model from Firebase user if no Firestore doc
-          return UserModel(
-            id: userCredential.user!.uid,
-            email: userCredential.user!.email ?? '',
-            fullName: userCredential.user!.displayName ?? '',
-            role: 'student', // Default role
-          );
-        }
+      
+      if (user == null) return null;
+      
+      // Refresh verification status from Firebase
+      final isVerified = await _firebaseService.refreshUserVerificationStatus();
+      
+      // Get user data from SQLite
+      final userData = await _firebaseService.getCurrentUserData();
+      
+      if (userData != null) {
+        return UserModel(
+          id: userData['uid'] ?? '',
+          email: userData['email'] ?? '',
+          fullName: userData['fullName'] ?? '',
+          role: userData['role'] ?? 'student',
+          staffType: userData['staffType'],
+          isEmailVerified: isVerified,
+          phone: userData['phone'],
+          department: userData['department'],
+          indexNumber: userData['indexNumber'],
+          campusId: userData['campusId'],
+        );
       }
       return null;
-    } on firebase.FirebaseAuthException catch (e) {
-      throw _handleFirebaseError(e);
     } catch (e) {
-      throw Exception('An error occurred: $e');
+      throw Exception(e.toString());
     }
   }
 
-  // Student Sign Up
+  // ==================== STUDENT SIGN UP ====================
   Future<UserModel?> signUpStudent({
     required String email,
     required String password,
@@ -61,53 +63,40 @@ class AuthRepository {
     required String intake,
   }) async {
     try {
-      // Create user in Firebase Auth
-      final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email.trim(),
+      final user = await _firebaseService.signUpStudent(
+        email: email,
         password: password,
+        fullName: fullName,
+        indexNumber: indexNumber,
+        campusId: campusId,
+        nic: nic,
+        phone: phone,
+        dob: dob,
+        department: department,
+        degree: degree,
+        intake: intake,
       );
-
-      if (userCredential.user != null) {
-        // Update display name
-        await userCredential.user!.updateDisplayName(fullName);
-        await userCredential.user!.reload();
-        
-        // Send email verification
-        await userCredential.user!.sendEmailVerification();
-
-        // Create user document in Firestore
-        final user = UserModel(
-          id: userCredential.user!.uid,
+      
+      if (user != null) {
+        return UserModel(
+          id: user.uid,
           email: email,
           fullName: fullName,
           role: 'student',
+          isEmailVerified: false,
+          phone: phone,
+          department: department,
           indexNumber: indexNumber,
           campusId: campusId,
-          nic: nic,
-          phone: phone,
-          dob: dob,
-          department: department,
-          degree: degree,
-          intake: intake,
-          createdAt: DateTime.now(),
         );
-
-        await _firestore
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .set(user.toFirestore());
-
-        return user;
       }
       return null;
-    } on firebase.FirebaseAuthException catch (e) {
-      throw _handleFirebaseError(e);
     } catch (e) {
-      throw Exception('An error occurred: $e');
+      throw Exception(e.toString());
     }
   }
 
-  // Staff Sign Up
+  // ==================== STAFF SIGN UP ====================
   Future<UserModel?> signUpStaff({
     required String email,
     required String password,
@@ -115,97 +104,70 @@ class AuthRepository {
     required String staffId,
     required String faculty,
     required String department,
-    required String designation,
-    required String phone,
-    String? officeLocation,
   }) async {
     try {
-      // Create user in Firebase Auth
-      final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email.trim(),
+      final user = await _firebaseService.signUpStaff(
+        email: email,
         password: password,
+        fullName: fullName,
+        staffId: staffId,
+        faculty: faculty,
+        department: department,
       );
-
-      if (userCredential.user != null) {
-        // Update display name
-        await userCredential.user!.updateDisplayName(fullName);
-        await userCredential.user!.reload();
-        
-        // Send email verification
-        await userCredential.user!.sendEmailVerification();
-
-        // Create user document in Firestore
-        final user = UserModel(
-          id: userCredential.user!.uid,
+      
+      if (user != null) {
+        return UserModel(
+          id: user.uid,
           email: email,
           fullName: fullName,
           role: 'staff',
-          staffId: staffId,
-          faculty: faculty,
+          staffType: 'academic',
+          isEmailVerified: false,
           department: department,
-          designation: designation,
-          phone: phone,
-          officeLocation: officeLocation,
-          createdAt: DateTime.now(),
         );
-
-        await _firestore
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .set(user.toFirestore());
-
-        return user;
       }
       return null;
-    } on firebase.FirebaseAuthException catch (e) {
-      throw _handleFirebaseError(e);
     } catch (e) {
-      throw Exception('An error occurred: $e');
+      throw Exception(e.toString());
     }
   }
 
-  // Get current user
+  // ==================== REFRESH EMAIL VERIFICATION ====================
+  Future<bool> refreshEmailVerificationStatus() async {
+    return await _firebaseService.refreshUserVerificationStatus();
+  }
+
+  // ==================== SEND EMAIL VERIFICATION ====================
+  Future<void> sendEmailVerification() async {
+    await _firebaseService.sendEmailVerification();
+  }
+
+  // ==================== SIGN OUT ====================
+  Future<void> signOut() async {
+    await _firebaseService.signOut();
+  }
+
+  // ==================== GET CURRENT USER ====================
   Future<UserModel?> getCurrentUser() async {
     try {
-      final firebaseUser = _auth.currentUser;
-      if (firebaseUser != null) {
-        final userDoc = await _firestore
-            .collection('users')
-            .doc(firebaseUser.uid)
-            .get();
-
-        if (userDoc.exists) {
-          return UserModel.fromFirestore(userDoc);
-        }
+      final userData = await _firebaseService.getCurrentUserData();
+      if (userData != null) {
+        return UserModel(
+          id: userData['uid'] ?? '',
+          email: userData['email'] ?? '',
+          fullName: userData['fullName'] ?? '',
+          role: userData['role'] ?? 'student',
+          staffType: userData['staffType'],
+          isEmailVerified: userData['isEmailVerified'] == 1,
+          phone: userData['phone'],
+          department: userData['department'],
+          indexNumber: userData['indexNumber'],
+          campusId: userData['campusId'],
+        );
       }
       return null;
     } catch (e) {
       return null;
-    }
-  }
-
-  // Sign Out
-  Future<void> signOut() async {
-    await _auth.signOut();
-  }
-
-  // Handle Firebase errors
-  String _handleFirebaseError(firebase.FirebaseAuthException e) {
-    switch (e.code) {
-      case 'user-not-found':
-        return 'No user found with this email.';
-      case 'wrong-password':
-        return 'Incorrect password.';
-      case 'email-already-in-use':
-        return 'This email is already registered.';
-      case 'invalid-email':
-        return 'Invalid email address.';
-      case 'weak-password':
-        return 'Password is too weak.';
-      case 'network-request-failed':
-        return 'Network error. Check your internet connection.';
-      default:
-        return 'An error occurred: ${e.message}';
     }
   }
 }

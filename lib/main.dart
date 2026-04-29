@@ -5,9 +5,11 @@ import 'package:smart_campus_app/core/theme/app_theme.dart';
 import 'package:smart_campus_app/core/services/database_service.dart';
 import 'package:smart_campus_app/core/services/firebase_service.dart';
 import 'package:smart_campus_app/data/repositories/auth_repository.dart';
-import 'package:smart_campus_app/data/repositories/auth_repository_impl.dart';
-import 'package:smart_campus_app/logic/auth_bloc/auth_bloc.dart';
-import 'package:smart_campus_app/logic/auth_bloc/auth_event.dart';
+import 'package:smart_campus_app/data/repositories/time_table/timetable_repository.dart';
+
+import 'package:smart_campus_app/business_logic/auth_bloc/auth_bloc.dart';
+import 'package:smart_campus_app/business_logic/auth_bloc/auth_event.dart';
+import 'package:smart_campus_app/business_logic/timetable/timetable_bloc.dart';
 
 // Screens
 import 'package:smart_campus_app/presentation/screens/splash/splash_screen.dart';
@@ -38,23 +40,33 @@ class SmartCampusApp extends StatelessWidget {
   Widget build(BuildContext context) {
     // Create service instances
     final firebaseService = FirebaseService();
-    final databaseService = DatabaseService();
 
     return MultiRepositoryProvider(
       providers: [
+        // Auth Repository
         RepositoryProvider<AuthRepository>(
-          create: (context) => AuthRepositoryImpl(
+          create: (context) => AuthRepository(
             firebaseService: firebaseService,
-            databaseService: databaseService,
           ),
+        ),
+        // Timetable Repository
+        RepositoryProvider<TimetableRepository>(
+          create: (context) => TimetableRepository(),
         ),
       ],
       child: MultiBlocProvider(
         providers: [
+          // Auth Bloc
           BlocProvider<AuthBloc>(
             create: (context) => AuthBloc(
               authRepository: context.read<AuthRepository>(),
             )..add(AuthCheckStatusRequested()),
+          ),
+          // Timetable Bloc
+          BlocProvider<TimetableBloc>(
+            create: (context) => TimetableBloc(
+              repository: context.read<TimetableRepository>(),
+            ),
           ),
         ],
         child: MaterialApp(

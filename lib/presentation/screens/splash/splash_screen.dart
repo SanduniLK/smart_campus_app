@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
-import 'package:smart_campus_app/logic/auth_bloc/auth_bloc.dart';
-import 'package:smart_campus_app/logic/auth_bloc/auth_state.dart';
+import 'package:smart_campus_app/business_logic/auth_bloc/auth_bloc.dart';
+import 'package:smart_campus_app/business_logic/auth_bloc/auth_state.dart';
 
 class RuhunaSplashScreen extends StatefulWidget {
   const RuhunaSplashScreen({super.key});

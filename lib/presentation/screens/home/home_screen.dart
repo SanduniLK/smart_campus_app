@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:smart_campus_app/logic/auth_bloc/auth_bloc.dart';
-import 'package:smart_campus_app/logic/auth_bloc/auth_state.dart';
+import 'package:smart_campus_app/business_logic/auth_bloc/auth_bloc.dart';
+import 'package:smart_campus_app/business_logic/auth_bloc/auth_state.dart';
 import 'package:smart_campus_app/presentation/screens/home/staff_dashboard_screen.dart';
 
 import 'package:smart_campus_app/presentation/screens/home/student_dashboard_screen.dart';
