@@ -2,237 +2,303 @@
 import 'package:smart_campus_app/core/services/database_service.dart';
 import 'package:smart_campus_app/core/services/firebase_service.dart';
 import 'package:smart_campus_app/data/models/event/event_model.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class EventRepository {
   final DatabaseService _db = DatabaseService();
   final FirebaseService _firebase = FirebaseService();
+  final Connectivity _connectivity = Connectivity();
   
-  // Flag to prevent multiple syncs
   bool _isSyncing = false;
+  List<Event> _cachedEvents = [];
 
-  // ✅ CREATE EVENT - Save to SQLite FIRST, then sync to Firestore
+  // ✅ Check internet connectivity
+  Future<bool> _hasInternet() async {
+    final result = await _connectivity.checkConnectivity();
+    return result != ConnectivityResult.none;
+  }
+
+  // ✅ GET ALL EVENTS - Online: Firebase, Offline: SQLite
+  Future<List<Event>> getAllEvents() async {
+    final hasInternet = await _hasInternet();
+    
+    if (hasInternet) {
+      try {
+        // Get from Firebase when online
+        print('🌐 Online: Fetching events from Firebase...');
+        final firestoreEvents = await _firebase.getAllEventsFromFirestore();
+        
+        if (firestoreEvents.isNotEmpty) {
+          // Sync to SQLite for offline cache
+          for (var event in firestoreEvents) {
+            await _db.insertOrUpdateEvent(event.toMap());
+          }
+          _cachedEvents = firestoreEvents;
+          print('✅ Got ${firestoreEvents.length} events from Firebase');
+          return firestoreEvents;
+        }
+      } catch (e) {
+        print('⚠️ Firebase error: $e, falling back to SQLite');
+      }
+    }
+    
+    // Offline or Firebase failed - use SQLite
+    print('📱 Offline: Loading events from SQLite...');
+    final result = await _db.getAllEvents();
+    final events = result.map((map) => Event.fromMap(map)).toList();
+    _cachedEvents = events;
+    print('✅ Got ${events.length} events from SQLite');
+    return events;
+  }
+
+  // ✅ GET APPROVED EVENTS - Online: Firebase, Offline: SQLite
+  Future<List<Event>> getApprovedEvents() async {
+    final hasInternet = await _hasInternet();
+    
+    if (hasInternet) {
+      try {
+        print('🌐 Online: Fetching approved events from Firebase...');
+        final firestoreEvents = await _firebase.getApprovedEventsFromFirestore();
+        
+        if (firestoreEvents.isNotEmpty) {
+          // Sync to SQLite
+          for (var event in firestoreEvents) {
+            await _db.insertOrUpdateEvent(event.toMap());
+          }
+          print('✅ Got ${firestoreEvents.length} approved events from Firebase');
+          return firestoreEvents;
+        }
+      } catch (e) {
+        print('⚠️ Firebase error: $e, falling back to SQLite');
+      }
+    }
+    
+    // Offline fallback
+    print('📱 Offline: Loading approved events from SQLite...');
+    final events = await _db.getEventsByStatus('approved');
+    final eventList = events.map((map) => Event.fromMap(map)).toList();
+    print('✅ Got ${eventList.length} approved events from SQLite');
+    return eventList;
+  }
+
+  // ✅ GET PENDING EVENTS - Online: Firebase, Offline: SQLite
+  Future<List<Event>> getPendingEvents() async {
+    final hasInternet = await _hasInternet();
+    
+    if (hasInternet) {
+      try {
+        print('🌐 Online: Fetching pending events from Firebase...');
+        final firestoreEvents = await _firebase.getPendingEventsFromFirestore();
+        
+        if (firestoreEvents.isNotEmpty) {
+          for (var event in firestoreEvents) {
+            await _db.insertOrUpdateEvent(event.toMap());
+          }
+          print('✅ Got ${firestoreEvents.length} pending events from Firebase');
+          return firestoreEvents;
+        }
+      } catch (e) {
+        print('⚠️ Firebase error: $e, falling back to SQLite');
+      }
+    }
+    
+    print('📱 Offline: Loading pending events from SQLite...');
+    final events = await _db.getPendingEvents();
+    final eventList = events.map((map) => Event.fromMap(map)).toList();
+    print('✅ Got ${eventList.length} pending events from SQLite');
+    return eventList;
+  }
+
+  // ✅ CREATE EVENT - Save to SQLite FIRST, then sync to Firebase
   Future<int> createEvent(Event event) async {
-    // 1. Save to SQLite first (immediate response)
+    // 1. Save to SQLite immediately (offline first)
     final localId = await _db.insertEvent(event.toMap());
     print('✅ Event saved to SQLite with ID: $localId');
     
-    // 2. Background sync to Firestore (don't await)
-    _syncEventToFirestore(event.copyWith(id: localId));
+    // 2. Try to sync to Firebase if online
+    final hasInternet = await _hasInternet();
+    if (hasInternet) {
+      try {
+        final eventWithId = Event(
+          id: localId,
+          firestoreId: event.firestoreId,
+          title: event.title,
+          description: event.description,
+          eventDate: event.eventDate,
+          startTime: event.startTime,
+          endTime: event.endTime,
+          location: event.location,
+          capacity: event.capacity,
+          registeredCount: event.registeredCount,
+          status: event.status,
+          createdBy: event.createdBy,
+          createdByRole: event.createdByRole,
+          createdByEmail: event.createdByEmail,
+          createdAt: event.createdAt,
+          updatedAt: event.updatedAt,
+        );
+        
+        final firestoreId = await _firebase.saveEventToFirestore(eventWithId);
+        await _db.updateEventFirestoreId(localId, firestoreId);
+        await _db.updateEventSyncStatus(localId, true);
+        print('✅ Event synced to Firebase');
+      } catch (e) {
+        print('⚠️ Failed to sync to Firebase, will retry later: $e');
+        await _db.updateEventSyncStatus(localId, false);
+      }
+    } else {
+      print('📱 Offline: Event saved to SQLite only, will sync when online');
+    }
     
     return localId;
   }
 
-  // ✅ GET ALL EVENTS - ONLY from SQLite (single source of truth)
-  Future<List<Event>> getAllEvents() async {
-    try {
-      final result = await _db.getAllEvents();
-      final events = result.map((map) => Event.fromMap(map)).toList();
-      print('📱 Loaded ${events.length} events from SQLite');
-      return events;
-    } catch (e) {
-      print('❌ Error loading events from SQLite: $e');
-      return [];
-    }
-  }
-
-  // ✅ GET APPROVED EVENTS - ONLY from SQLite
-  Future<List<Event>> getApprovedEvents() async {
-    try {
-      final events = await _db.getEventsByStatus('approved');
-      final eventList = events.map((map) => Event.fromMap(map)).toList();
-      print('📱 Loaded ${eventList.length} approved events from SQLite');
-      return eventList;
-    } catch (e) {
-      print('❌ Error loading approved events: $e');
-      return [];
-    }
-  }
-
-  // ✅ GET PENDING EVENTS - ONLY from SQLite
-  Future<List<Event>> getPendingEvents() async {
-    try {
-      final events = await _db.getPendingEvents();
-      final eventList = events.map((map) => Event.fromMap(map)).toList();
-      print('📱 Loaded ${eventList.length} pending events from SQLite');
-      return eventList;
-    } catch (e) {
-      print('❌ Error loading pending events: $e');
-      return [];
-    }
-  }
-
-  // ✅ APPROVE EVENT - Update SQLite FIRST, then sync
-  Future<void> approveEvent(int eventId) async {
-    // 1. Update SQLite first
-    await _db.updateEventStatus(eventId, 'approved');
-    print('✅ Event approved in SQLite');
-    
-    // 2. Background sync to Firestore
-    _syncEventStatusToFirestore(eventId, 'approved');
-  }
-
-  // ✅ REJECT EVENT - Update SQLite FIRST, then sync
-  Future<void> rejectEvent(int eventId) async {
-    // 1. Update SQLite first
-    await _db.updateEventStatus(eventId, 'rejected');
-    print('✅ Event rejected in SQLite');
-    
-    // 2. Background sync to Firestore
-    _syncEventStatusToFirestore(eventId, 'rejected');
-  }
-
-  // ✅ REGISTER FOR EVENT - Save to SQLite FIRST, then sync
+  // ✅ REGISTER FOR EVENT - Save to SQLite FIRST
   Future<String> registerForEvent(int eventId, String userId) async {
     final qrData = '$eventId|$userId|${DateTime.now().millisecondsSinceEpoch}';
     
-    // 1. Save to SQLite first
+    // 1. Save to SQLite immediately
     await _db.registerForEvent(eventId, userId);
     print('✅ Registration saved to SQLite');
     
-    // 2. Background sync to Firestore
-    _syncRegistrationToFirestore(eventId, userId, qrData);
+    // 2. Sync to Firebase if online
+    final hasInternet = await _hasInternet();
+    if (hasInternet) {
+      try {
+        await _firebase.saveRegistrationToFirestore(eventId, userId, qrData);
+        print('✅ Registration synced to Firebase');
+      } catch (e) {
+        print('⚠️ Failed to sync registration: $e');
+      }
+    }
     
     return qrData;
   }
 
-  // ✅ GET USER REGISTRATIONS - ONLY from SQLite
+  // ✅ GET USER REGISTRATIONS - Online first, offline fallback
   Future<List<Map<String, dynamic>>> getUserRegistrations(String userId) async {
-    try {
-      return await _db.getUserEventRegistrations(userId);
-    } catch (e) {
-      print('❌ Error loading registrations: $e');
-      return [];
+    final hasInternet = await _hasInternet();
+    
+    if (hasInternet) {
+      try {
+        print('🌐 Online: Fetching registrations from Firebase...');
+        final firestoreRegs = await _firebase.getUserRegistrationsFromFirestore(userId);
+        if (firestoreRegs.isNotEmpty) {
+          return firestoreRegs;
+        }
+      } catch (e) {
+        print('⚠️ Firebase error: $e');
+      }
     }
+    
+    print('📱 Offline: Loading registrations from SQLite...');
+    return await _db.getUserEventRegistrations(userId);
   }
 
-  // ✅ GET USER EVENT REGISTRATIONS - ONLY from SQLite
-  Future<List<Map<String, dynamic>>> getUserEventRegistrations(String userId) async {
-    try {
-      return await _db.getUserEventRegistrations(userId);
-    } catch (e) {
-      print('❌ Error loading user event registrations: $e');
-      return [];
-    }
-  }
-
-  // ✅ SCAN QR - Update SQLite FIRST, then sync
+  // ✅ SCAN QR - Update SQLite FIRST
   Future<void> scanQR(int eventId, String userId) async {
-    // 1. Update SQLite first
+    // 1. Update SQLite immediately
     final success = await _db.scanQRCode(eventId, userId);
     if (!success) {
       throw Exception('Failed to scan QR code');
     }
     print('✅ QR scanned in SQLite');
     
-    // 2. Background sync to Firestore
-    _syncScanToFirestore(eventId, userId);
+    // 2. Sync to Firebase if online
+    final hasInternet = await _hasInternet();
+    if (hasInternet) {
+      try {
+        await _firebase.updateRegistrationScan(eventId, userId);
+        print('✅ QR scan synced to Firebase');
+      } catch (e) {
+        print('⚠️ Failed to sync QR scan: $e');
+      }
+    }
   }
 
-  // ✅ CHECK IF USER SCANNED - ONLY from SQLite
-  Future<bool> hasUserScannedForEvent(int eventId, String userId) async {
-    return await _db.hasUserScannedForEvent(eventId, userId);
+  // ✅ APPROVE EVENT - Update both
+  Future<void> approveEvent(int eventId) async {
+    // 1. Update SQLite
+    await _db.updateEventStatus(eventId, 'approved');
+    print('✅ Event approved in SQLite');
+    
+    // 2. Update Firebase if online
+    final hasInternet = await _hasInternet();
+    if (hasInternet) {
+      final eventMap = await _db.getEventById(eventId);
+      if (eventMap != null && eventMap['firestoreId'] != null) {
+        try {
+          await _firebase.updateEventStatusInFirestore(eventMap['firestoreId'], 'approved');
+          print('✅ Event approved in Firebase');
+        } catch (e) {
+          print('⚠️ Failed to sync approval: $e');
+        }
+      }
+    }
   }
 
-  // ✅ GET ATTENDANCE STATUS - ONLY from SQLite
-  Future<String?> getAttendanceStatus(int eventId, String userId) async {
-    return await _db.getAttendanceStatus(eventId, userId);
+  // ✅ REJECT EVENT
+  Future<void> rejectEvent(int eventId) async {
+    await _db.updateEventStatus(eventId, 'rejected');
+    print('✅ Event rejected in SQLite');
+    
+    final hasInternet = await _hasInternet();
+    if (hasInternet) {
+      final eventMap = await _db.getEventById(eventId);
+      if (eventMap != null && eventMap['firestoreId'] != null) {
+        try {
+          await _firebase.updateEventStatusInFirestore(eventMap['firestoreId'], 'rejected');
+          print('✅ Event rejected in Firebase');
+        } catch (e) {
+          print('⚠️ Failed to sync rejection: $e');
+        }
+      }
+    }
   }
 
-  // ✅ SYNC FROM FIRESTORE TO SQLITE (pull updates from cloud)
-  // Call this method periodically or when app comes online
-  Future<void> syncFromFirestore() async {
-    if (_isSyncing) {
-      print('⚠️ Sync already in progress');
+  // ✅ SYNC LOCAL CHANGES TO FIREBASE (background sync)
+  Future<void> syncPendingChanges() async {
+    final hasInternet = await _hasInternet();
+    if (!hasInternet) {
+      print('📱 No internet, skipping sync');
       return;
     }
     
+    if (_isSyncing) return;
     _isSyncing = true;
-    print('🔄 Starting sync from Firestore to SQLite...');
     
     try {
-      // Get all events from Firestore
-      final firestoreEvents = await _firebase.getAllEventsFromFirestore();
-      print('☁️ Found ${firestoreEvents.length} events in Firestore');
-      
-      for (var event in firestoreEvents) {
-        // Check if event exists in SQLite
-        final existingEvent = await _db.getEventById(event.id ?? 0);
-        
-        if (existingEvent == null) {
-          // New event - insert
-          await _db.insertOrUpdateEvent(event.toMap());
-          print('  ✅ Added new event: ${event.title}');
-        } else {
-          // Existing event - update if newer
-          final existingUpdatedAt = existingEvent['updatedAt'];
-          final newUpdatedAt = event.updatedAt?.toIso8601String();
-          
-          if (newUpdatedAt != null && existingUpdatedAt != newUpdatedAt) {
-            await _db.insertOrUpdateEvent(event.toMap());
-            print('  ✅ Updated event: ${event.title}');
-          }
+      // Get unsynced events
+      final unsyncedEvents = await _db.getUnsyncedEvents();
+      for (var event in unsyncedEvents) {
+        try {
+          final firestoreId = await _firebase.saveEventToFirestore(Event.fromMap(event));
+          await _db.updateEventFirestoreId(event['id'], firestoreId);
+          await _db.updateEventSyncStatus(event['id'], true);
+          print('✅ Synced unsynced event: ${event['title']}');
+        } catch (e) {
+          print('⚠️ Failed to sync event: $e');
         }
       }
       
-      // Also sync pending events
-      final pendingEvents = await _firebase.getPendingEventsFromFirestore();
-      for (var event in pendingEvents) {
-        await _db.insertOrUpdateEvent(event.toMap());
-      }
-      
-      print('✅ Sync completed successfully');
-      
+      print('✅ Sync completed');
     } catch (e) {
-      print('❌ Error syncing from Firestore: $e');
+      print('❌ Sync error: $e');
     } finally {
       _isSyncing = false;
     }
   }
 
-  // ========== PRIVATE BACKGROUND SYNC METHODS ==========
+  // Helper methods
+  Future<bool> hasUserScannedForEvent(int eventId, String userId) async {
+    return await _db.hasUserScannedForEvent(eventId, userId);
+  }
+
+  Future<String?> getAttendanceStatus(int eventId, String userId) async {
+    return await _db.getAttendanceStatus(eventId, userId);
+  }
   
-  Future<void> _syncEventToFirestore(Event event) async {
-    try {
-      final firestoreId = await _firebase.saveEventToFirestore(event);
-      await _db.updateEventFirestoreId(event.id!, firestoreId);
-      await _db.updateEventSyncStatus(event.id!, true);
-      print('✅ Event synced to Firestore: ${event.title}');
-    } catch (e) {
-      print('⚠️ Failed to sync event to Firestore: $e');
-      await _db.updateEventSyncStatus(event.id!, false);
-    }
-  }
-
-  Future<void> _syncEventStatusToFirestore(int eventId, String status) async {
-    try {
-      final eventMap = await _db.getEventById(eventId);
-      if (eventMap != null) {
-        final firestoreId = eventMap['firestoreId'] as String?;
-        if (firestoreId != null && firestoreId.isNotEmpty) {
-          await _firebase.updateEventStatusInFirestore(firestoreId, status);
-          print('✅ Event status synced to Firestore');
-        }
-      }
-    } catch (e) {
-      print('⚠️ Failed to sync event status to Firestore: $e');
-    }
-  }
-
-  Future<void> _syncRegistrationToFirestore(int eventId, String userId, String qrData) async {
-    try {
-      await _firebase.saveRegistrationToFirestore(eventId, userId, qrData);
-      print('✅ Registration synced to Firestore');
-    } catch (e) {
-      print('⚠️ Failed to sync registration to Firestore: $e');
-    }
-  }
-
-  Future<void> _syncScanToFirestore(int eventId, String userId) async {
-    try {
-      await _firebase.updateRegistrationScan(eventId, userId);
-      print('✅ Scan synced to Firestore');
-    } catch (e) {
-      print('⚠️ Failed to sync scan to Firestore: $e');
-    }
+  Future<List<Map<String, dynamic>>> getUserEventRegistrations(String userId) async {
+    return await _db.getUserEventRegistrations(userId);
   }
 }

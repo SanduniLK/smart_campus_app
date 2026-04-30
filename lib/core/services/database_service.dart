@@ -727,5 +727,12 @@ Future<String?> getAttendanceStatus(int eventId, String userId) async {
   }
   return null;
 }
+Future<List<Map<String, dynamic>>> getUnsyncedEvents() async {
+  final db = await database;
+  return await db.query(
+    'events',
+    where: 'isSynced = 0 OR isSynced IS NULL',
+  );
+}
 
 }

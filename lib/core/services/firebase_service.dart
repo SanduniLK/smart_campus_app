@@ -650,6 +650,44 @@ Future<void> saveRegistrationToFirestore(int eventId, String userId, String qrDa
   }
 }
 
+Future<List<Event>> getApprovedEventsFromFirestore() async {
+  try {
+    final snapshot = await _firestore
+        .collection('events')
+        .where('status', isEqualTo: 'approved')
+        .orderBy('eventDate', descending: false)
+        .get();
+    
+    print('☁️ Firestore: Found ${snapshot.docs.length} approved events');
+    
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      return Event(
+        firestoreId: doc.id,
+        title: data['title'] ?? '',
+        description: data['description'] ?? '',
+        eventDate: data['eventDate'] != null 
+            ? DateTime.parse(data['eventDate']) 
+            : DateTime.now(),
+        startTime: data['startTime'],
+        endTime: data['endTime'],
+        location: data['location'] ?? '',
+        capacity: data['capacity'] ?? 0,
+        registeredCount: data['registeredCount'] ?? 0,
+        status: data['status'] ?? 'pending',
+        createdBy: data['createdBy'] ?? '',
+        createdByRole: data['createdByRole'] ?? '',
+        createdByEmail: data['createdByEmail'],
+        createdAt: data['createdAt'] != null 
+            ? (data['createdAt'] as Timestamp).toDate() 
+            : null,
+      );
+    }).toList();
+  } catch (e) {
+    print('❌ Error getting approved events from Firestore: $e');
+    return [];
+  }
+}
 Future<List<Map<String, dynamic>>> getUserRegistrationsFromFirestore(String userId) async {
   try {
     final snapshot = await _firestore
