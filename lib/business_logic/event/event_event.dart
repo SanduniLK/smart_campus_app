@@ -35,6 +35,7 @@ class RegisterForEvent extends EventEvent {
   List<Object> get props => [eventId];
 }
 class LoadMyRegistrations extends EventEvent {}
+class LoadApprovedEvents extends EventEvent {}
 class ScanQR extends EventEvent {
   final int eventId;
   final String userId;

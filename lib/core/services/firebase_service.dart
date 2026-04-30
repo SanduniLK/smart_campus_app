@@ -563,22 +563,27 @@ Future<List<Event>> getPendingEventsFromFirestore() async {
     final snapshot = await _firestore
         .collection('events')
         .where('status', isEqualTo: 'pending')
+        .orderBy('createdAt', descending: true)
         .get();
+    
+    print('☁️ Firestore: Found ${snapshot.docs.length} pending events');
+    
     return snapshot.docs.map((doc) {
       final data = doc.data();
       return Event(
+        id: int.tryParse(doc.id) ?? 0,
         firestoreId: doc.id,
-        title: data['title'],
-        description: data['description'],
-        eventDate: DateTime.parse(data['eventDate']),
+        title: data['title'] ?? '',
+        description: data['description'] ?? '',
+        eventDate: data['eventDate'] != null ? DateTime.parse(data['eventDate']) : DateTime.now(),
         startTime: data['startTime'],
         endTime: data['endTime'],
-        location: data['location'],
-        capacity: data['capacity'],
+        location: data['location'] ?? '',
+        capacity: data['capacity'] ?? 0,
         registeredCount: data['registeredCount'] ?? 0,
-        status: data['status'],
-        createdBy: data['createdBy'],
-        createdByRole: data['createdByRole'],
+        status: data['status'] ?? 'pending',
+        createdBy: data['createdBy'] ?? '',
+        createdByRole: data['createdByRole'] ?? '',
         createdByEmail: data['createdByEmail'],
         createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       );
@@ -588,7 +593,31 @@ Future<List<Event>> getPendingEventsFromFirestore() async {
     return [];
   }
 }
-
+Future<void> syncPendingEventsFromFirestoreToSQLite() async {
+  try {
+    final firestoreEvents = await getPendingEventsFromFirestore();
+    
+    for (var event in firestoreEvents) {
+      await _db.insertOrUpdateEvent(event.toMap());
+    }
+    print('✅ Synced ${firestoreEvents.length} pending events from Firestore to SQLite');
+  } catch (e) {
+    print('❌ Error syncing pending events: $e');
+  }
+}
+Future<void> updateEventStatusInFirestore(String firestoreId, String status) async {
+  try {
+    await _firestore.collection('events').doc(firestoreId).update({
+      'status': status,
+      'approvedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    print('✅ Firestore: Event $firestoreId status updated to $status');
+  } catch (e) {
+    print('❌ Error updating event status in Firestore: $e');
+    throw e;
+  }
+}
 Future<void> updateEventStatus(String firestoreId, String status) async {
   try {
     await _firestore.collection('events').doc(firestoreId).update({

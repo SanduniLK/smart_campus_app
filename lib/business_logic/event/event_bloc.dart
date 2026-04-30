@@ -12,6 +12,7 @@ class EventBloc extends Bloc<EventEvent, EventState> {
       : _repository = repository,
         super(EventInitial()) {
     on<LoadEvents>(_onLoadEvents);
+    on<LoadApprovedEvents>(_onLoadApprovedEvents);
     on<LoadPendingEvents>(_onLoadPendingEvents);
     on<CreateEvent>(_onCreateEvent);
     on<ApproveEvent>(_onApproveEvent);
@@ -25,6 +26,16 @@ class EventBloc extends Bloc<EventEvent, EventState> {
     emit(EventLoading());
     try {
       final events = await _repository.getAllEvents();
+      emit(EventsLoaded(events));
+    } catch (e) {
+      emit(EventError(e.toString()));
+    }
+  }
+
+  Future<void> _onLoadApprovedEvents(LoadApprovedEvents event, Emitter<EventState> emit) async {
+    emit(EventLoading());
+    try {
+      final events = await _repository.getApprovedEvents();
       emit(EventsLoaded(events));
     } catch (e) {
       emit(EventError(e.toString()));
@@ -96,13 +107,20 @@ class EventBloc extends Bloc<EventEvent, EventState> {
     }
   }
 
+  // ✅ FIXED: _onScanQR now properly handles void return
   Future<void> _onScanQR(ScanQR event, Emitter<EventState> emit) async {
     emit(EventLoading());
     try {
       await _repository.scanQR(event.eventId, event.userId);
+      // After successful scan, emit QRScanned state
       emit(QRScanned());
     } catch (e) {
-      emit(EventError(e.toString()));
+      // Check if this is an "already scanned" error
+      if (e.toString().contains('already') || e.toString().contains('Already')) {
+        emit(EventError('QR Code already scanned! You have already marked attendance.'));
+      } else {
+        emit(EventError(e.toString()));
+      }
     }
   }
 }

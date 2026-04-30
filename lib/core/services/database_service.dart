@@ -22,19 +22,19 @@ class DatabaseService {
   }
 
   Future<Database> _initDatabase() async {
-    Directory documentsDirectory = await getApplicationDocumentsDirectory();
-    String path = join(documentsDirectory.path, 'smart_campus.db');
-    
-    print('📂 Opening database at: $path');
-    
-    return await openDatabase(
-      path,
-      version: 3,
-      onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
-      singleInstance: true,
-    );
-  }
+  Directory documentsDirectory = await getApplicationDocumentsDirectory();
+  String path = join(documentsDirectory.path, 'smart_campus.db');
+  
+  print('📂 Opening database at: $path');
+  
+  return await openDatabase(
+    path,
+    version: 4,  
+    onCreate: _onCreate,
+    onUpgrade: _onUpgrade,
+    singleInstance: true,
+  );
+}
 
   Future<void> _onCreate(Database db, int version) async {
     print('📦 Creating fresh database...');
@@ -90,38 +90,45 @@ class DatabaseService {
     
     // Events Table
     await db.execute('''
-      CREATE TABLE events(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        description TEXT,
-        eventDate TEXT NOT NULL,
-        startTime TEXT,
-        endTime TEXT,
-        location TEXT NOT NULL,
-        capacity INTEGER NOT NULL,
-        registeredCount INTEGER DEFAULT 0,
-        qrCode TEXT,
-        isActive INTEGER DEFAULT 1,
-        createdBy TEXT,
-        createdByRole TEXT,
-        createdByEmail TEXT,
-        createdAt TEXT
-      )
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      firestoreId TEXT,
+      title TEXT NOT NULL,
+      description TEXT,
+      eventDate TEXT NOT NULL,
+      startTime TEXT,
+      endTime TEXT,
+      location TEXT NOT NULL,
+      capacity INTEGER NOT NULL,
+      registeredCount INTEGER DEFAULT 0,
+      qrCode TEXT,
+      isActive INTEGER DEFAULT 1,
+      status TEXT DEFAULT 'pending',
+      createdBy TEXT,
+      createdByRole TEXT,
+      createdByEmail TEXT,
+      approvedBy TEXT,
+      approvedAt TEXT,
+      createdAt TEXT,
+      updatedAt TEXT,
+      isSynced INTEGER DEFAULT 1
     ''');
     
     // Event Registrations Table
     await db.execute('''
       CREATE TABLE event_registrations(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        eventId INTEGER NOT NULL,
-        userId TEXT NOT NULL,
-        registrationDate TEXT NOT NULL,
-        qrScanned INTEGER DEFAULT 0,
-        scannedAt TEXT,
-        attendanceStatus TEXT DEFAULT 'Pending',
-        FOREIGN KEY (eventId) REFERENCES events(id) ON DELETE CASCADE,
-        FOREIGN KEY (userId) REFERENCES users(uid) ON DELETE CASCADE,
-        UNIQUE(eventId, userId)
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+      firestoreId TEXT,
+      eventId INTEGER NOT NULL,
+      userId TEXT NOT NULL,
+      registrationDate TEXT NOT NULL,
+      qrScanned INTEGER DEFAULT 0,
+      scannedAt TEXT,
+      attendanceStatus TEXT DEFAULT 'Pending',
+      qrCodeData TEXT,
+      isSynced INTEGER DEFAULT 1,
+      FOREIGN KEY (eventId) REFERENCES events(id) ON DELETE CASCADE,
+      FOREIGN KEY (userId) REFERENCES users(uid) ON DELETE CASCADE,
+      UNIQUE(eventId, userId)
       )
     ''');
     
@@ -152,37 +159,74 @@ class DatabaseService {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    print('🔄 Upgrading database from $oldVersion to $newVersion');
-    
-    if (oldVersion < 2) {
-      try {
-        await db.execute('ALTER TABLE users ADD COLUMN phone TEXT');
-        await db.execute('ALTER TABLE users ADD COLUMN department TEXT');
-        print('✅ Added phone and department columns');
-      } catch (e) {
-        print('⚠️ Error adding columns: $e');
-      }
-    }
-    
-    if (oldVersion < 3) {
-      try {
-        await db.execute('ALTER TABLE students ADD COLUMN level TEXT');
-        await db.execute('ALTER TABLE students ADD COLUMN currentSemester TEXT');
-        print('✅ Added level and currentSemester columns');
-      } catch (e) {
-        print('⚠️ Error adding level columns: $e');
-      }
-      
-      try {
-        await db.execute('ALTER TABLE timetable ADD COLUMN firestoreId TEXT');
-        await db.execute('ALTER TABLE timetable ADD COLUMN updatedAt TEXT');
-        await db.execute('ALTER TABLE timetable ADD COLUMN isSynced INTEGER DEFAULT 1');
-        print('✅ Added sync columns to timetable');
-      } catch (e) {
-        print('⚠️ Error adding sync columns: $e');
-      }
-    }
+  print('🔄 Upgrading database from $oldVersion to $newVersion');
+  
+  if (oldVersion < 2) {
+    try {
+      await db.execute('ALTER TABLE users ADD COLUMN phone TEXT');
+      await db.execute('ALTER TABLE users ADD COLUMN department TEXT');
+      print('✅ Added phone and department columns');
+    } catch (e) { print('⚠️ Error adding columns: $e'); }
   }
+  
+  if (oldVersion < 3) {
+    try {
+      await db.execute('ALTER TABLE students ADD COLUMN level TEXT');
+      await db.execute('ALTER TABLE students ADD COLUMN currentSemester TEXT');
+      print('✅ Added level and currentSemester columns');
+    } catch (e) { print('⚠️ Error adding level columns: $e'); }
+    
+    try {
+      await db.execute('ALTER TABLE timetable ADD COLUMN firestoreId TEXT');
+      await db.execute('ALTER TABLE timetable ADD COLUMN updatedAt TEXT');
+      await db.execute('ALTER TABLE timetable ADD COLUMN isSynced INTEGER DEFAULT 1');
+      print('✅ Added sync columns to timetable');
+    } catch (e) { print('⚠️ Error adding sync columns: $e'); }
+  }
+  
+  // ✅ ADD THIS FOR VERSION 4
+  if (oldVersion < 4) {
+    try {
+      await db.execute('ALTER TABLE events ADD COLUMN status TEXT DEFAULT "pending"');
+      print('✅ Added status column to events table');
+    } catch (e) { print('⚠️ status column error: $e'); }
+    
+    try {
+      await db.execute('ALTER TABLE events ADD COLUMN firestoreId TEXT');
+      print('✅ Added firestoreId column to events');
+    } catch (e) { print('⚠️ firestoreId column error: $e'); }
+    
+    try {
+      await db.execute('ALTER TABLE events ADD COLUMN isSynced INTEGER DEFAULT 1');
+      print('✅ Added isSynced column to events');
+    } catch (e) { print('⚠️ isSynced column error: $e'); }
+    
+    try {
+      await db.execute('ALTER TABLE events ADD COLUMN approvedBy TEXT');
+      print('✅ Added approvedBy column to events');
+    } catch (e) { print('⚠️ approvedBy column error: $e'); }
+    
+    try {
+      await db.execute('ALTER TABLE events ADD COLUMN approvedAt TEXT');
+      print('✅ Added approvedAt column to events');
+    } catch (e) { print('⚠️ approvedAt column error: $e'); }
+    
+    try {
+      await db.execute('ALTER TABLE event_registrations ADD COLUMN firestoreId TEXT');
+      print('✅ Added firestoreId column to event_registrations');
+    } catch (e) { print('⚠️ firestoreId column error: $e'); }
+    
+    try {
+      await db.execute('ALTER TABLE event_registrations ADD COLUMN qrCodeData TEXT');
+      print('✅ Added qrCodeData column to event_registrations');
+    } catch (e) { print('⚠️ qrCodeData column error: $e'); }
+    
+    try {
+      await db.execute('ALTER TABLE event_registrations ADD COLUMN isSynced INTEGER DEFAULT 1');
+      print('✅ Added isSynced column to event_registrations');
+    } catch (e) { print('⚠️ isSynced column error: $e'); }
+  }
+}
 
   Future<void> close() async {
     if (_database != null && _database!.isOpen) {
@@ -438,7 +482,12 @@ Future<int> insertEvent(Map<String, dynamic> eventData) async {
 
 Future<List<Map<String, dynamic>>> getAllEvents() async {
   final db = await database;
-  return await db.query('events', orderBy: 'eventDate DESC');
+  // Use DISTINCT to avoid duplicates
+  return await db.query(
+    'events', 
+    distinct: true,
+    orderBy: 'eventDate DESC',
+  );
 }
 
 Future<List<Map<String, dynamic>>> getUpcomingEvents() async {
@@ -460,24 +509,56 @@ Future<Map<String, dynamic>?> getEventById(int id) async {
 
 Future<List<Map<String, dynamic>>> getEventsByStatus(String status) async {
   final db = await database;
-  return await db.query(
+  final result = await db.query(
     'events',
     where: 'status = ?',
     whereArgs: [status],
     orderBy: 'createdAt DESC',
   );
+  print('📚 SQLite: Found ${result.length} events with status: $status');
+  return result;
+}
+Future<List<Map<String, dynamic>>> getPendingEvents() async {
+  final db = await database;
+  
+  // First, check if status column exists
+  final columns = await db.rawQuery("PRAGMA table_info(events)");
+  final hasStatusColumn = columns.any((col) => col['name'] == 'status');
+  
+  if (!hasStatusColumn) {
+    print('⚠️ Status column missing! Adding it...');
+    await db.execute('ALTER TABLE events ADD COLUMN status TEXT DEFAULT "pending"');
+  }
+  
+  final result = await db.query(
+    'events',
+    where: 'status = ?',
+    whereArgs: ['pending'],
+    orderBy: 'createdAt DESC',
+  );
+  
+  print('🔍 SQLite getPendingEvents query returned ${result.length} rows');
+  for (var row in result) {
+    print('  - ID: ${row['id']}, Title: ${row['title']}, Status: ${row['status']}');
+  }
+  
+  return result;
 }
 
 Future<void> updateEventStatus(int id, String status) async {
   final db = await database;
   await db.update(
     'events',
-    {'status': status, 'approvedAt': DateTime.now().toIso8601String()},
+    {
+      'status': status,
+      'approvedAt': DateTime.now().toIso8601String(),
+      'updatedAt': DateTime.now().toIso8601String(),
+    },
     where: 'id = ?',
     whereArgs: [id],
   );
+  print('✅ SQLite: Event $id status updated to $status');
 }
-
 Future<void> updateEventFirestoreId(int localId, String firestoreId) async {
   final db = await database;
   await db.update(
@@ -500,16 +581,36 @@ Future<void> updateEventSyncStatus(int localId, bool isSynced) async {
 
 Future<void> insertOrUpdateEvent(Map<String, dynamic> eventData) async {
   final db = await database;
-  await db.insert(
+  
+  // Check if event already exists by firestoreId or id
+  final existingEvent = await db.query(
     'events',
-    eventData,
-    conflictAlgorithm: ConflictAlgorithm.replace,
+    where: 'firestoreId = ? OR id = ?',
+    whereArgs: [eventData['firestoreId'], eventData['id']],
   );
+  
+  if (existingEvent.isNotEmpty) {
+    // Update existing event
+    await db.update(
+      'events',
+      eventData,
+      where: 'id = ?',
+      whereArgs: [existingEvent.first['id']],
+    );
+    print('✅ Updated existing event: ${eventData['title']}');
+  } else {
+    // Insert new event
+    await db.insert('events', eventData);
+    print('✅ Inserted new event: ${eventData['title']}');
+  }
 }
+
+// In lib/data/services/database_service.dart
 
 Future<String> registerForEvent(int eventId, String userId) async {
   final db = await database;
   
+  // Check if already registered
   final existing = await db.query(
     'event_registrations',
     where: 'eventId = ? AND userId = ?',
@@ -520,6 +621,7 @@ Future<String> registerForEvent(int eventId, String userId) async {
   
   final qrData = '$eventId|$userId|${DateTime.now().millisecondsSinceEpoch}';
   
+  // Insert registration
   await db.insert('event_registrations', {
     'eventId': eventId,
     'userId': userId,
@@ -529,11 +631,10 @@ Future<String> registerForEvent(int eventId, String userId) async {
     'qrCodeData': qrData,
   });
   
-  await db.update(
-    'events',
-    {'registeredCount': db.rawUpdate('registeredCount + 1')},
-    where: 'id = ?',
-    whereArgs: [eventId],
+  // ✅ FIXED: Correct SQL syntax for incrementing registeredCount
+  await db.rawUpdate(
+    'UPDATE events SET registeredCount = registeredCount + 1 WHERE id = ?',
+    [eventId]
   );
   
   return qrData;
@@ -562,17 +663,69 @@ Future<List<Map<String, dynamic>>> getUserEventRegistrations(String userId) asyn
 
 Future<bool> scanQRCode(int eventId, String userId) async {
   final db = await database;
-  final result = await db.update(
+  final now = DateTime.now().toIso8601String();
+  
+  try {
+    // First check if registration exists
+    final registration = await db.query(
+      'event_registrations',
+      where: 'eventId = ? AND userId = ?',
+      whereArgs: [eventId, userId],
+    );
+    
+    if (registration.isEmpty) {
+      print('❌ No registration found for event $eventId and user $userId');
+      return false;
+    }
+    
+    // Check if already scanned
+    final isScanned = registration.first['qrScanned'] == 1;
+    if (isScanned) {
+      print('⚠️ QR Code already scanned for this registration');
+      return false; // Already scanned
+    }
+    
+    // Update the registration
+    final result = await db.update(
+      'event_registrations',
+      {
+        'qrScanned': 1,
+        'scannedAt': now,
+        'attendanceStatus': 'Present',
+      },
+      where: 'eventId = ? AND userId = ?',
+      whereArgs: [eventId, userId],
+    );
+    
+    print('✅ QR Code scanned successfully for event $eventId, user $userId');
+    return result > 0;
+  } catch (e) {
+    print('❌ Error scanning QR code: $e');
+    return false;
+  }
+}
+Future<bool> hasUserScannedForEvent(int eventId, String userId) async {
+  final db = await database;
+  final result = await db.query(
     'event_registrations',
-    {
-      'qrScanned': 1,
-      'scannedAt': DateTime.now().toIso8601String(),
-      'attendanceStatus': 'Present',
-    },
+    where: 'eventId = ? AND userId = ? AND qrScanned = 1',
+    whereArgs: [eventId, userId],
+  );
+  return result.isNotEmpty;
+}
+
+// Add method to get attendance status
+Future<String?> getAttendanceStatus(int eventId, String userId) async {
+  final db = await database;
+  final result = await db.query(
+    'event_registrations',
     where: 'eventId = ? AND userId = ?',
     whereArgs: [eventId, userId],
   );
-  return result > 0;
+  if (result.isNotEmpty) {
+    return result.first['attendanceStatus'] as String?;
+  }
+  return null;
 }
 
 }

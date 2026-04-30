@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
 import 'package:smart_campus_app/core/services/database_service.dart';
 import 'package:smart_campus_app/core/services/firebase_service.dart';
-import 'package:smart_campus_app/presentation/screens/events/create_event_screen.dart';
 import 'package:smart_campus_app/presentation/screens/events/events_list_screen.dart';
+import 'package:smart_campus_app/presentation/screens/events/create_event_screen.dart';
+import 'package:smart_campus_app/presentation/screens/events/student_events_screen.dart';
+
 import 'package:smart_campus_app/presentation/screens/time_table/student_timetable_screen.dart';
 import 'package:smart_campus_app/presentation/widgets/student_dashboard/announcements_list.dart';
 import 'package:smart_campus_app/presentation/widgets/student_dashboard/next_class_card.dart';
 import 'package:smart_campus_app/presentation/widgets/student_dashboard/progress_stats.dart';
-
+import 'package:smart_campus_app/presentation/widgets/student_dashboard/quick_access_grid.dart';
 import 'package:smart_campus_app/presentation/widgets/student_dashboard/welcome_header.dart';
 import 'package:smart_campus_app/presentation/widgets/glass_card.dart';
 
@@ -100,19 +102,21 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
-  void _navigateToEvents() {
+  void _navigateToRegisterEvents() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const EventsListScreen()),
     );
   }
 
-  void _navigateToCreateEvent() {
+  void _navigateToMyEvents() {
     Navigator.push(
-      context, 
-      MaterialPageRoute(builder: (_) => const CreateEventScreen())
+      context,
+      MaterialPageRoute(builder: (_) => const StudentEventsScreen()),
     );
   }
+
+  
 
   Widget _buildClassCard(Map<String, dynamic> entry, {bool isUpcoming = false}) {
     final now = DateTime.now();
@@ -385,7 +389,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               ),
               const SizedBox(height: 12),
               
-              // ✅ Updated Quick Access Grid with Create Event button
+              // ✅ UPDATED Quick Access Grid - 4 buttons
               Row(
                 children: [
                   Expanded(
@@ -400,11 +404,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildQuickActionCard(
-                      icon: Icons.event,
-                      title: 'Events',
-                      subtitle: 'Browse events',
+                      icon: Icons.event_available,
+                      title: 'Register Events',
+                      subtitle: 'Browse & join',
                       color: AppColors.success,
-                      onTap: _navigateToEvents,
+                      onTap: _navigateToRegisterEvents,
                     ),
                   ),
                 ],
@@ -414,11 +418,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 children: [
                   Expanded(
                     child: _buildQuickActionCard(
-                      icon: Icons.add_circle,
-                      title: 'Create Event',
-                      subtitle: 'Host new event',
+                      icon: Icons.list_alt,
+                      title: 'My Events',
+                      subtitle: 'Track status',
                       color: AppColors.vibrantYellow,
-                      onTap: _navigateToCreateEvent,
+                      onTap: _navigateToMyEvents,
                     ),
                   ),
                   const SizedBox(width: 12),

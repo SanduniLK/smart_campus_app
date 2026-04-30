@@ -27,6 +27,7 @@ class AcademicDashboard extends StatefulWidget {
 class _AcademicDashboardState extends State<AcademicDashboard> {
   late UserModel _user;
   int _currentIndex = 0;
+  bool _isFixingDatabase = false;
 
   final List<Widget> _tabWidgets = [
     const SizedBox(), // Home tab - built dynamically
@@ -125,6 +126,80 @@ class _AcademicDashboardState extends State<AcademicDashboard> {
     );
   }
 
+  Future<void> _fixDatabase() async {
+    setState(() => _isFixingDatabase = true);
+    
+    try {
+      final db = DatabaseService();
+      final database = await db.database;
+      
+      // Add status column to events table
+      try {
+        await database.execute('ALTER TABLE events ADD COLUMN status TEXT DEFAULT "pending"');
+        print('✅ Added status column to events table');
+      } catch (e) {
+        print('status column error: $e');
+      }
+      
+      // Add firestoreId column
+      try {
+        await database.execute('ALTER TABLE events ADD COLUMN firestoreId TEXT');
+        print('✅ Added firestoreId column');
+      } catch (e) {
+        print('firestoreId: $e');
+      }
+      
+      // Add isSynced column
+      try {
+        await database.execute('ALTER TABLE events ADD COLUMN isSynced INTEGER DEFAULT 1');
+        print('✅ Added isSynced column');
+      } catch (e) {
+        print('isSynced: $e');
+      }
+      
+      // Add approvedBy column
+      try {
+        await database.execute('ALTER TABLE events ADD COLUMN approvedBy TEXT');
+        print('✅ Added approvedBy column');
+      } catch (e) {
+        print('approvedBy: $e');
+      }
+      
+      // Add approvedAt column
+      try {
+        await database.execute('ALTER TABLE events ADD COLUMN approvedAt TEXT');
+        print('✅ Added approvedAt column');
+      } catch (e) {
+        print('approvedAt: $e');
+      }
+      
+      // Update existing events to have status = 'pending' if null
+      try {
+        await database.rawUpdate('UPDATE events SET status = "pending" WHERE status IS NULL');
+        print('✅ Updated existing events to pending status');
+      } catch (e) {
+        print('Update error: $e');
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Database fixed! Status column added.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      setState(() => _isFixingDatabase = false);
+    }
+  }
+
   // ==================== HOME TAB CONTENT ====================
   Widget _buildHomeTab() {
     return SingleChildScrollView(
@@ -139,6 +214,27 @@ class _AcademicDashboardState extends State<AcademicDashboard> {
           _buildQuickActions(),
           const SizedBox(height: 24),
           _buildMySchedule(),
+          const SizedBox(height: 16),
+          
+          // Database Fix Button (only for debugging - can be removed later)
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            child: ElevatedButton.icon(
+              onPressed: _isFixingDatabase ? null : _fixDatabase,
+              icon: _isFixingDatabase
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.build),
+              label: const Text('Fix Database'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
         ],
       ),
     );
