@@ -6,6 +6,7 @@ import 'package:smart_campus_app/core/constants/app_colors.dart';
 import 'package:smart_campus_app/business_logic/auth_bloc/auth_bloc.dart';
 import 'package:smart_campus_app/business_logic/auth_bloc/auth_event.dart';
 import 'package:smart_campus_app/business_logic/auth_bloc/auth_state.dart';
+import 'package:smart_campus_app/core/services/database_service.dart';
 import 'package:smart_campus_app/presentation/widgets/splash_screen/animated_glass_background.dart';
 
 
@@ -181,36 +182,85 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildLoginCard() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.4),
-            border: Border.all(color: Colors.white.withOpacity(0.15), width: 1.5),
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              children: [
-                _buildEmailField(),
-                const SizedBox(height: 20),
-                _buildPasswordField(),
-                const SizedBox(height: 16),
-                _buildRememberRow(),
-                const SizedBox(height: 24),
-                _buildLoginButton(),
-              ],
-            ),
+  return ClipRRect(
+    borderRadius: BorderRadius.circular(24),
+    child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.4),
+          border: Border.all(color: Colors.white.withOpacity(0.15), width: 1.5),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              _buildEmailField(),
+              const SizedBox(height: 20),
+              _buildPasswordField(),
+              const SizedBox(height: 16),
+              _buildRememberRow(),
+              const SizedBox(height: 24),
+              _buildLoginButton(),
+              
+              // ✅ PASTE THE FIX BUTTON HERE
+              const SizedBox(height: 16),
+              _buildFixDatabaseButton(),  // Add this line
+              
+            ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
+Widget _buildFixDatabaseButton() {
+  return Container(
+    width: double.infinity,
+    child: ElevatedButton(
+      onPressed: () async {
+        final db = DatabaseService();
+        final database = await db.database;
+        
+        // Check existing columns
+        final columns = await database.rawQuery("PRAGMA table_info(students)");
+        print('Existing columns: ${columns.map((c) => c['name'])}');
+        
+        // Add level column
+        try {
+          await database.execute('ALTER TABLE students ADD COLUMN level TEXT');
+          print('✅ Added level column');
+        } catch (e) {
+          print('level: $e');
+        }
+        
+        // Add currentSemester column
+        try {
+          await database.execute('ALTER TABLE students ADD COLUMN currentSemester TEXT');
+          print('✅ Added currentSemester column');
+        } catch (e) {
+          print('currentSemester: $e');
+        }
+        
+        // Verify columns were added
+        final newColumns = await database.rawQuery("PRAGMA table_info(students)");
+        print('New columns: ${newColumns.map((c) => c['name'])}');
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Database fixed! Try signing up again.')),
+        );
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.orange,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      child: const Text('Fix Database Now', style: TextStyle(color: Colors.white)),
+    ),
+  );
+}
 
   Widget _buildEmailField() {
     return TextFormField(

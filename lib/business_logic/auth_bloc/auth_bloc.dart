@@ -4,10 +4,10 @@ import 'auth_event.dart';
 import 'auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  final AuthRepository _authRepository;  // ✅ Make sure this is defined
+  final AuthRepository _authRepository;
 
   AuthBloc({required AuthRepository authRepository})
-      : _authRepository = authRepository,  // ✅ Assign it here
+      : _authRepository = authRepository,
         super(AuthInitial()) {
     on<AuthCheckStatusRequested>(_onCheckStatus);
     on<AuthLoginRequested>(_onLogin);
@@ -15,7 +15,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthStaffSignUpRequested>(_onStaffSignUp);
     on<AuthLogoutRequested>(_onLogout);
     on<AuthEmailVerified>(_onEmailVerified);
-    on<AuthResetPasswordRequested>(_onResetPassword);  // ✅ Add this
+    on<AuthResetPasswordRequested>(_onResetPassword);
   }
 
   Future<void> _onCheckStatus(
@@ -86,6 +86,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         department: event.department,
         degree: event.degree,
         intake: event.intake,
+        level: event.level,                    // ✅ ADD THIS
+        currentSemester: event.currentSemester, // ✅ ADD THIS
       );
       
       if (user != null) {
@@ -121,18 +123,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onLogout(
-  AuthLogoutRequested event,
-  Emitter<AuthState> emit,
-) async {
-  emit(AuthLoading());
-  
-  try {
-    await _authRepository.signOut();
-    emit(AuthUnauthenticated());
-  } catch (e) {
-    emit(AuthError(e.toString().replaceAll('Exception: ', '')));
+    AuthLogoutRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    
+    try {
+      await _authRepository.signOut();
+      emit(AuthUnauthenticated());
+    } catch (e) {
+      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
+    }
   }
-}
 
   Future<void> _onEmailVerified(
     AuthEmailVerified event,
@@ -152,7 +154,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  // ✅ Add this method
   Future<void> _onResetPassword(
     AuthResetPasswordRequested event,
     Emitter<AuthState> emit,

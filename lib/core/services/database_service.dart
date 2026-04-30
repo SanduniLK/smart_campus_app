@@ -1,7 +1,9 @@
+import 'package:smart_campus_app/data/models/time_table_model/course_model.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
+import '../../data/models/time_table_model/timetable_entry_model.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -11,7 +13,6 @@ class DatabaseService {
   static Database? _database;
 
   Future<Database> get database async {
-    // ✅ Return existing database if already open
     if (_database != null && _database!.isOpen) {
       return _database!;
     }
@@ -25,19 +26,19 @@ class DatabaseService {
     
     print('📂 Opening database at: $path');
     
-    // ✅ NO DELETION - Just open existing
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
-      singleInstance: true,  // ✅ Prevent multiple instances
+      singleInstance: true,
     );
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    print('📦 Creating new database...');
-    
+    print('📦 Creating fresh database...');
+
+    // Users Table
     await db.execute('''
       CREATE TABLE users(
         uid TEXT PRIMARY KEY,
@@ -53,23 +54,26 @@ class DatabaseService {
       )
     ''');
     
+    // Students Table
     await db.execute('''
-      CREATE TABLE students(
-        uid TEXT PRIMARY KEY,
-        indexNumber TEXT,
-        campusId TEXT,
-        nic TEXT,
-        phone TEXT,
-        dob TEXT,
-        department TEXT,
-        degree TEXT,
-        intake TEXT,
-        currentSemester INTEGER DEFAULT 1,
-        batchYear INTEGER,
-        FOREIGN KEY (uid) REFERENCES users(uid) ON DELETE CASCADE
-      )
+ CREATE TABLE students(
+    uid TEXT PRIMARY KEY,
+    indexNumber TEXT,
+    campusId TEXT,
+    nic TEXT,
+    phone TEXT,
+    dob TEXT,
+    department TEXT,
+    degree TEXT,
+    intake TEXT,
+    level TEXT,
+    currentSemester TEXT,
+    currentSemesterNumber INTEGER DEFAULT 1,
+    batchYear INTEGER,
+    FOREIGN KEY (uid) REFERENCES users(uid) ON DELETE CASCADE
     ''');
     
+    // Staff Table
     await db.execute('''
       CREATE TABLE staff(
         uid TEXT PRIMARY KEY,
@@ -83,33 +87,67 @@ class DatabaseService {
       )
     ''');
     
+    // Events Table
     await db.execute('''
-      CREATE TABLE courses(
+      CREATE TABLE events(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        courseCode TEXT NOT NULL,
-        courseName TEXT NOT NULL,
-        credits INTEGER DEFAULT 3,
-        lecturerName TEXT NOT NULL,
-        batchYear TEXT,
-        department TEXT
+        title TEXT NOT NULL,
+        description TEXT,
+        eventDate TEXT NOT NULL,
+        startTime TEXT,
+        endTime TEXT,
+        location TEXT NOT NULL,
+        capacity INTEGER NOT NULL,
+        registeredCount INTEGER DEFAULT 0,
+        qrCode TEXT,
+        isActive INTEGER DEFAULT 1,
+        createdBy TEXT,
+        createdByRole TEXT,
+        createdByEmail TEXT,
+        createdAt TEXT
       )
     ''');
     
+    // Event Registrations Table
     await db.execute('''
-      CREATE TABLE timetable_slots(
+      CREATE TABLE event_registrations(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        courseId INTEGER NOT NULL,
+        eventId INTEGER NOT NULL,
+        userId TEXT NOT NULL,
+        registrationDate TEXT NOT NULL,
+        qrScanned INTEGER DEFAULT 0,
+        scannedAt TEXT,
+        attendanceStatus TEXT DEFAULT 'Pending',
+        FOREIGN KEY (eventId) REFERENCES events(id) ON DELETE CASCADE,
+        FOREIGN KEY (userId) REFERENCES users(uid) ON DELETE CASCADE,
+        UNIQUE(eventId, userId)
+      )
+    ''');
+    
+    // Timetable Table
+    await db.execute('''
+      CREATE TABLE timetable(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        firestoreId TEXT,
+        lecturerName TEXT NOT NULL,
+        lecturerId TEXT,
+        level TEXT NOT NULL,
+        semester TEXT NOT NULL,
+        courseId TEXT NOT NULL,
+        courseName TEXT NOT NULL,
         dayOfWeek INTEGER NOT NULL,
         startTime TEXT NOT NULL,
         endTime TEXT NOT NULL,
         roomNumber TEXT NOT NULL,
-        building TEXT NOT NULL,
-        type TEXT DEFAULT 'Lecture',
-        FOREIGN KEY (courseId) REFERENCES courses(id) ON DELETE CASCADE
+        building TEXT,
+        createdBy TEXT,
+        createdAt TEXT,
+        updatedAt TEXT,
+        isSynced INTEGER DEFAULT 1
       )
     ''');
     
-    print('✅ Database created');
+    print('✅ Database created successfully!');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -118,14 +156,33 @@ class DatabaseService {
     if (oldVersion < 2) {
       try {
         await db.execute('ALTER TABLE users ADD COLUMN phone TEXT');
-      } catch (e) {}
-      try {
         await db.execute('ALTER TABLE users ADD COLUMN department TEXT');
-      } catch (e) {}
+        print('✅ Added phone and department columns');
+      } catch (e) {
+        print('⚠️ Error adding columns: $e');
+      }
+    }
+    
+    if (oldVersion < 3) {
+      try {
+        await db.execute('ALTER TABLE students ADD COLUMN level TEXT');
+        await db.execute('ALTER TABLE students ADD COLUMN currentSemester TEXT');
+        print('✅ Added level and currentSemester columns');
+      } catch (e) {
+        print('⚠️ Error adding level columns: $e');
+      }
+      
+      try {
+        await db.execute('ALTER TABLE timetable ADD COLUMN firestoreId TEXT');
+        await db.execute('ALTER TABLE timetable ADD COLUMN updatedAt TEXT');
+        await db.execute('ALTER TABLE timetable ADD COLUMN isSynced INTEGER DEFAULT 1');
+        print('✅ Added sync columns to timetable');
+      } catch (e) {
+        print('⚠️ Error adding sync columns: $e');
+      }
     }
   }
 
-  // ✅ Close database when done (call this on app exit)
   Future<void> close() async {
     if (_database != null && _database!.isOpen) {
       await _database!.close();
@@ -133,16 +190,23 @@ class DatabaseService {
     }
   }
 
-  // ==================== YOUR EXISTING METHODS ====================
+  // ==================== USER OPERATIONS ====================
   
   Future<void> insertOrUpdateUser(Map<String, dynamic> userData) async {
     final db = await database;
     await db.insert('users', userData, conflictAlgorithm: ConflictAlgorithm.replace);
+    print('✅ User saved: ${userData['uid']}');
   }
 
   Future<Map<String, dynamic>?> getUserByUid(String uid) async {
     final db = await database;
     final result = await db.query('users', where: 'uid = ?', whereArgs: [uid]);
+    return result.isNotEmpty ? result.first : null;
+  }
+
+  Future<Map<String, dynamic>?> getUserByEmail(String email) async {
+    final db = await database;
+    final result = await db.query('users', where: 'email = ?', whereArgs: [email]);
     return result.isNotEmpty ? result.first : null;
   }
 
@@ -156,9 +220,12 @@ class DatabaseService {
     await db.update('users', {'isEmailVerified': isVerified ? 1 : 0}, where: 'uid = ?', whereArgs: [uid]);
   }
 
+  // ==================== STUDENT OPERATIONS ====================
+
   Future<void> insertStudentDetails(Map<String, dynamic> studentData) async {
     final db = await database;
     await db.insert('students', studentData, conflictAlgorithm: ConflictAlgorithm.replace);
+    print('✅ Student details saved');
   }
 
   Future<Map<String, dynamic>?> getStudentDetails(String uid) async {
@@ -167,9 +234,12 @@ class DatabaseService {
     return result.isNotEmpty ? result.first : null;
   }
 
+  // ==================== STAFF OPERATIONS ====================
+
   Future<void> insertStaffDetails(Map<String, dynamic> staffData) async {
     final db = await database;
     await db.insert('staff', staffData, conflictAlgorithm: ConflictAlgorithm.replace);
+    print('✅ Staff details saved');
   }
 
   Future<Map<String, dynamic>?> getStaffDetails(String uid) async {
@@ -178,31 +248,212 @@ class DatabaseService {
     return result.isNotEmpty ? result.first : null;
   }
 
-  Future<int> insertCourse(Map<String, dynamic> courseData) async {
+  Future<List<Map<String, dynamic>>> getAcademicStaff() async {
+  final db = await database;
+  
+  // Academic staff are stored in users table with staffType = 'academic'
+  // They are also in staff table with their details
+  final result = await db.rawQuery('''
+    SELECT 
+      u.uid, 
+      u.fullName, 
+      u.email,
+      u.staffType,
+      s.staffId, 
+      s.faculty, 
+      s.department
+    FROM users u
+    LEFT JOIN staff s ON u.uid = s.uid
+    WHERE u.role = 'staff' AND u.staffType = 'academic'
+    ORDER BY u.fullName
+  ''');
+  
+  print('📚 Found ${result.length} academic staff members');
+  for (var staff in result) {
+    print('  - ${staff['fullName']} (${staff['staffType']})');
+  }
+  
+  return result;
+}
+
+  // ==================== EVENT OPERATIONS ====================
+
+  Future<int> insertEvent(Map<String, dynamic> eventData) async {
     final db = await database;
-    return await db.insert('courses', courseData);
+    return await db.insert('events', eventData);
   }
 
-  Future<List<Map<String, dynamic>>> getAllCourses() async {
+  Future<List<Map<String, dynamic>>> getAllEvents() async {
     final db = await database;
-    return await db.query('courses');
+    return await db.query('events', orderBy: 'eventDate DESC');
   }
 
-  Future<int> insertTimetableSlot(Map<String, dynamic> slotData) async {
+  Future<List<Map<String, dynamic>>> getUpcomingEvents() async {
     final db = await database;
-    return await db.insert('timetable_slots', slotData);
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    return await db.query(
+      'events',
+      where: 'eventDate >= ? AND isActive = 1',
+      whereArgs: [today],
+      orderBy: 'eventDate ASC',
+    );
+  }
+
+  Future<Map<String, dynamic>?> getEventById(int id) async {
+    final db = await database;
+    final result = await db.query('events', where: 'id = ?', whereArgs: [id]);
+    return result.isNotEmpty ? result.first : null;
+  }
+
+  Future<int> registerForEvent(int eventId, String userId) async {
+    final db = await database;
+    
+    final existing = await db.query(
+      'event_registrations',
+      where: 'eventId = ? AND userId = ?',
+      whereArgs: [eventId, userId],
+    );
+    
+    if (existing.isNotEmpty) return -1;
+    
+    final result = await db.insert('event_registrations', {
+      'eventId': eventId,
+      'userId': userId,
+      'registrationDate': DateTime.now().toIso8601String(),
+      'qrScanned': 0,
+      'attendanceStatus': 'Pending',
+    });
+    
+    await db.update(
+      'events',
+      {'registeredCount': db.rawUpdate('registeredCount + 1')},
+      where: 'id = ?',
+      whereArgs: [eventId],
+    );
+    
+    return result;
+  }
+
+  Future<bool> isUserRegisteredForEvent(int eventId, String userId) async {
+    final db = await database;
+    final result = await db.query(
+      'event_registrations',
+      where: 'eventId = ? AND userId = ?',
+      whereArgs: [eventId, userId],
+    );
+    return result.isNotEmpty;
+  }
+
+  Future<List<Map<String, dynamic>>> getUserEventRegistrations(String userId) async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT e.*, er.registrationDate, er.qrScanned, er.attendanceStatus
+      FROM event_registrations er
+      INNER JOIN events e ON er.eventId = e.id
+      WHERE er.userId = ?
+      ORDER BY e.eventDate DESC
+    ''', [userId]);
+  }
+
+  Future<bool> scanQRCode(int eventId, String userId) async {
+    final db = await database;
+    final result = await db.update(
+      'event_registrations',
+      {
+        'qrScanned': 1,
+        'scannedAt': DateTime.now().toIso8601String(),
+        'attendanceStatus': 'Present',
+      },
+      where: 'eventId = ? AND userId = ?',
+      whereArgs: [eventId, userId],
+    );
+    return result > 0;
+  }
+
+  // ==================== TIMETABLE OPERATIONS ====================
+
+  Future<int> insertTimetableEntry(Map<String, dynamic> entryData) async {
+    final db = await database;
+    return await db.insert('timetable', entryData);
   }
 
   Future<List<Map<String, dynamic>>> getTimetableByDay(int dayOfWeek) async {
     final db = await database;
-    return await db.rawQuery('''
-      SELECT ts.*, c.courseCode, c.courseName, c.lecturerName 
-      FROM timetable_slots ts
-      INNER JOIN courses c ON ts.courseId = c.id
-      WHERE ts.dayOfWeek = ?
-      ORDER BY ts.startTime
-    ''', [dayOfWeek]);
+    return await db.query(
+      'timetable',
+      where: 'dayOfWeek = ?',
+      whereArgs: [dayOfWeek],
+      orderBy: 'startTime',
+    );
   }
+
+  Future<List<Map<String, dynamic>>> getAllTimetable() async {
+    final db = await database;
+    return await db.query('timetable', orderBy: 'dayOfWeek, startTime');
+  }
+
+  Future<List<Map<String, dynamic>>> getTimetableByLecturer(String lecturerName) async {
+    final db = await database;
+    return await db.query(
+      'timetable',
+      where: 'lecturerName = ?',
+      whereArgs: [lecturerName],
+      orderBy: 'dayOfWeek, startTime',
+    );
+  }
+
+  Future<int> updateTimetableEntry(int id, Map<String, dynamic> entryData) async {
+    final db = await database;
+    return await db.update('timetable', entryData, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> deleteTimetableEntry(int id) async {
+    final db = await database;
+    return await db.delete('timetable', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ==================== TIMETABLE SYNC METHODS ====================
+
+  Future<void> insertOrUpdateTimetableEntry(TimetableEntry entry) async {
+    final db = await database;
+    await db.insert(
+      'timetable',
+      entry.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<TimetableEntry>> getUnsyncedTimetableEntries() async {
+    final db = await database;
+    final result = await db.query(
+      'timetable',
+      where: 'isSynced = 0',
+    );
+    return result.map((map) => TimetableEntry.fromMap(map)).toList();
+  }
+
+  Future<void> updateTimetableFirestoreId(int localId, String firestoreId) async {
+  final db = await database;
+  await db.update(
+    'timetable',
+    {'firestoreId': firestoreId},
+    where: 'id = ?',
+    whereArgs: [localId],
+  );
+}
+
+
+  Future<void> markTimetableAsSynced(int localId) async {
+  final db = await database;
+  await db.update(
+    'timetable',
+    {'isSynced': 1},
+    where: 'id = ?',
+    whereArgs: [localId],
+  );
+}
+
+  // ==================== SESSION OPERATIONS ====================
 
   Future<void> recordLogin(String uid) async {
     print('📝 Login recorded for: $uid');
@@ -213,14 +464,54 @@ class DatabaseService {
     print('📝 Logout recorded for: $uid');
   }
 
+  // ==================== COMPLETE USER PROFILE ====================
+
   Future<Map<String, dynamic>?> getCompleteUserProfile(String uid) async {
     final userData = await getUserByUid(uid);
     if (userData == null) return null;
     return userData;
   }
 
-  Future<List<Map<String, dynamic>>> getAllUsers() async {
-    final db = await database;
-    return await db.query('users');
-  }
+  // ==================== LECTURER METHODS ====================
+
+  Future<Map<String, dynamic>?> getLecturerByName(String fullName) async {
+  final db = await database;
+  final result = await db.rawQuery('''
+    SELECT 
+      u.uid, 
+      u.fullName, 
+      u.email,
+      u.staffType,
+      s.staffId, 
+      s.faculty, 
+      s.department
+    FROM users u
+    LEFT JOIN staff s ON u.uid = s.uid
+    WHERE u.role = 'staff' AND u.staffType = 'academic' AND u.fullName = ?
+  ''', [fullName]);
+  
+  return result.isNotEmpty ? result.first : null;
+}
+  Future<void> insertOrUpdateCourse(Course course) async {
+  final db = await database;
+  await db.insert(
+    'courses',
+    course.toMap(),
+    conflictAlgorithm: ConflictAlgorithm.replace,
+  );
+}
+
+Future<List<Course>> getUnsyncedCourses() async {
+  final db = await database;
+  final result = await db.query(
+    'courses',
+    where: 'isSynced = 0',
+  );
+  return result.map((map) => Course.fromMap(map)).toList();
+}
+
+Future<void> updateCourse(int id, Map<String, dynamic> updates) async {
+  final db = await database;
+  await db.update('courses', updates, where: 'id = ?', whereArgs: [id]);
+}
 }

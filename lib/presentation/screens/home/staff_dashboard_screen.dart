@@ -5,10 +5,10 @@ import 'package:intl/intl.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
 import 'package:smart_campus_app/business_logic/auth_bloc/auth_bloc.dart';
 import 'package:smart_campus_app/business_logic/auth_bloc/auth_state.dart';
+import 'package:smart_campus_app/presentation/screens/time_table/create_timetable_screen.dart';
 import 'package:smart_campus_app/presentation/widgets/glass_card.dart';
 import 'package:smart_campus_app/data/models/user_model.dart';
 import 'package:smart_campus_app/presentation/screens/time_table/staff_timetable_manager.dart';
-
 
 class StaffDashboardScreen extends StatelessWidget {
   const StaffDashboardScreen({super.key});
@@ -230,10 +230,7 @@ class StaffDashboardScreen extends StatelessWidget {
                 Icons.post_add_rounded,
                 'Announcement',
                 AppColors.electricPurple,
-                () {
-                  // Navigate to Post Announcement
-                  
-                },
+                () {},
               ),
             ),
             const SizedBox(width: 12),
@@ -242,10 +239,7 @@ class StaffDashboardScreen extends StatelessWidget {
                 Icons.event_rounded,
                 'Create Event',
                 AppColors.softMagenta,
-                () {
-                  // Navigate to Create Event
-                 
-                },
+                () {},
               ),
             ),
             const SizedBox(width: 12),
@@ -255,7 +249,6 @@ class StaffDashboardScreen extends StatelessWidget {
                 'Take Attendance',
                 AppColors.vibrantYellow,
                 () {
-                  // Navigate to Take Attendance (QR Scanner)
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('QR Scanner Coming Soon')),
                   );
@@ -273,10 +266,10 @@ class StaffDashboardScreen extends StatelessWidget {
                 'Timetable',
                 AppColors.electricPurple,
                 () {
-                  // ✅ NAVIGATE TO TIMETABLE MANAGEMENT
+                  // ✅ Navigate to Create Timetable Screen
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const StaffTimetableManager()),
+                    MaterialPageRoute(builder: (_) => const CreateTimetableScreen()),
                   );
                 },
               ),
@@ -353,7 +346,6 @@ class StaffDashboardScreen extends StatelessWidget {
             ),
             TextButton(
               onPressed: () {
-                // ✅ NAVIGATE TO FULL TIMETABLE VIEW
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const StaffTimetableManager()),
@@ -378,7 +370,6 @@ class StaffDashboardScreen extends StatelessWidget {
           'Year 2 Semester 1',
           isNext: true,
           onTap: () {
-            // Navigate to edit this schedule
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Edit Schedule Coming Soon')),
             );
@@ -689,10 +680,7 @@ class StaffDashboardScreen extends StatelessWidget {
               ),
             ),
             TextButton(
-              onPressed: () {
-                // Navigate to Post Announcement
-                
-              },
+              onPressed: () {},
               child: Text(
                 'Post New',
                 style: GoogleFonts.poppins(

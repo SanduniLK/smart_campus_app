@@ -1,6 +1,6 @@
+// lib/business_logic/timetable/timetable_state.dart
 import 'package:equatable/equatable.dart';
-import 'package:smart_campus_app/data/models/time_table_model/course_model.dart';
-import 'package:smart_campus_app/data/models/time_table_model/timetable_slot_model.dart';
+import '../../data/models/time_table_model/timetable_entry_model.dart';
 
 abstract class TimetableState extends Equatable {
   const TimetableState();
@@ -13,18 +13,11 @@ class TimetableInitial extends TimetableState {}
 class TimetableLoading extends TimetableState {}
 
 class TimetableLoaded extends TimetableState {
-  final List<TimetableSlot> slots;
+  final List<TimetableEntry> entries;
   final int currentDay;
-  const TimetableLoaded({required this.slots, required this.currentDay});
+  const TimetableLoaded({required this.entries, required this.currentDay});
   @override
-  List<Object> get props => [slots, currentDay];
-}
-
-class CoursesLoaded extends TimetableState {
-  final List<Course> courses;
-  const CoursesLoaded(this.courses);
-  @override
-  List<Object> get props => [courses];
+  List<Object> get props => [entries, currentDay];
 }
 
 class TimetableOperationSuccess extends TimetableState {

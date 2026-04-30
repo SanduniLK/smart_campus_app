@@ -1,3 +1,4 @@
+// lib/business_logic/auth_bloc/auth_event.dart
 import 'package:equatable/equatable.dart';
 
 abstract class AuthEvent extends Equatable {
@@ -31,6 +32,8 @@ class AuthStudentSignUpRequested extends AuthEvent {
   final String department;
   final String degree;
   final String intake;
+  final String level;              
+  final String currentSemester; 
 
   const AuthStudentSignUpRequested({
     required this.email,
@@ -44,16 +47,18 @@ class AuthStudentSignUpRequested extends AuthEvent {
     required this.department,
     required this.degree,
     required this.intake,
+    required this.level,              
+    required this.currentSemester, 
   });
   
   @override
   List<Object?> get props => [
     email, password, fullName, indexNumber, campusId, 
-    nic, phone, dob, department, degree, intake
+    nic, phone, dob, department, degree, intake,
+    level, currentSemester  // ✅ FIXED: Added missing props
   ];
 }
 
-// FIXED: Added missing parameters
 class AuthStaffSignUpRequested extends AuthEvent {
   final String email;
   final String password;
@@ -87,6 +92,7 @@ class AuthStaffSignUpRequested extends AuthEvent {
 class AuthLogoutRequested extends AuthEvent {}
 
 class AuthEmailVerified extends AuthEvent {}
+
 class AuthResetPasswordRequested extends AuthEvent {
   final String email;
   const AuthResetPasswordRequested({required this.email});

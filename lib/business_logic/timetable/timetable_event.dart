@@ -1,7 +1,6 @@
+// lib/business_logic/timetable/timetable_event.dart
 import 'package:equatable/equatable.dart';
-import 'package:smart_campus_app/data/models/time_table_model/course_model.dart';
-import 'package:smart_campus_app/data/models/time_table_model/timetable_slot_model.dart';
-
+import '../../data/models/time_table_model/timetable_entry_model.dart';
 
 abstract class TimetableEvent extends Equatable {
   const TimetableEvent();
@@ -9,6 +8,7 @@ abstract class TimetableEvent extends Equatable {
   List<Object?> get props => [];
 }
 
+// Load Events
 class LoadTimetableByDay extends TimetableEvent {
   final int dayOfWeek;
   const LoadTimetableByDay(this.dayOfWeek);
@@ -18,41 +18,26 @@ class LoadTimetableByDay extends TimetableEvent {
 
 class LoadAllTimetable extends TimetableEvent {}
 
-class LoadCourses extends TimetableEvent {}
-
-class AddCourse extends TimetableEvent {
-  final Course course;
-  const AddCourse(this.course);
+// Timetable Entry Events
+class AddTimetableEntry extends TimetableEvent {
+  final TimetableEntry entry;
+  const AddTimetableEntry(this.entry);
   @override
-  List<Object> get props => [course];
+  List<Object> get props => [entry];
 }
 
-class DeleteCourse extends TimetableEvent {
-  final int courseId;
-  const DeleteCourse(this.courseId);
+class UpdateTimetableEntry extends TimetableEvent {
+  final TimetableEntry entry;
+  const UpdateTimetableEntry(this.entry);
   @override
-  List<Object> get props => [courseId];
+  List<Object> get props => [entry];
 }
 
-class AddTimetableSlot extends TimetableEvent {
-  final TimetableSlot slot;
-  const AddTimetableSlot(this.slot);
+class DeleteTimetableEntry extends TimetableEvent {
+  final int entryId;
+  const DeleteTimetableEntry(this.entryId);
   @override
-  List<Object> get props => [slot];
-}
-
-class UpdateTimetableSlot extends TimetableEvent {
-  final TimetableSlot slot;
-  const UpdateTimetableSlot(this.slot);
-  @override
-  List<Object> get props => [slot];
-}
-
-class DeleteTimetableSlot extends TimetableEvent {
-  final int slotId;
-  const DeleteTimetableSlot(this.slotId);
-  @override
-  List<Object> get props => [slotId];
+  List<Object> get props => [entryId];
 }
 
 class RefreshTimetable extends TimetableEvent {}

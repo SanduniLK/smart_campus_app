@@ -60,23 +60,23 @@ class _StudentTimetableState extends State<StudentTimetable> {
                   );
                 }
                 if (state is TimetableLoaded) {
-                  if (state.slots.isEmpty) {
+                  if (state.entries.isEmpty) {  // ✅ Changed from slots to entries
                     return const EmptyTimetable();
                   }
                   return ListView.builder(
                     padding: const EdgeInsets.all(16),
-                    itemCount: state.slots.length,
+                    itemCount: state.entries.length,  // ✅ Changed from slots to entries
                     itemBuilder: (context, index) {
-                      final slot = state.slots[index];
+                      final entry = state.entries[index];  // ✅ Changed from slot to entry
                       return TimetableCard(
-                        courseCode: slot.courseCode ?? '',
-                        courseName: slot.courseName ?? '',
-                        startTime: slot.startTime,
-                        endTime: slot.endTime,
-                        roomNumber: slot.roomNumber,
-                        building: slot.building,
-                        lecturerName: slot.lecturerName ?? '',
-                        type: slot.type,
+                        courseCode: entry.courseId,  // ✅ Changed from slot.courseCode
+                        courseName: entry.courseName,
+                        startTime: entry.startTime,
+                        endTime: entry.endTime,
+                        roomNumber: entry.roomNumber,
+                        building: entry.building ?? '',
+                        lecturerName: entry.lecturerName,
+                        type: 'Lecture',  // Default type since not in model
                       );
                     },
                   );

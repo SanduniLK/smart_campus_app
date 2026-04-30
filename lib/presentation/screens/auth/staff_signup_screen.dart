@@ -223,7 +223,7 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
           staffId: _staffIdController.text.trim(),
           faculty: _selectedFaculty ?? '',
           department: _selectedDepartment ?? '',
-          
+          staffType: _staffType,
         );
         
         setState(() => _isLoading = false);
@@ -456,70 +456,39 @@ class _StaffSignUpScreenState extends State<StaffSignUpScreen> {
     );
   }
 
- Widget _buildStaffTypeRadios() {
-  return Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: Colors.black.withValues(alpha: 0.3),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
-    ),
-    child: Row(
-      children: [
-        // Academic Radio - with Expanded to prevent overflow
-        Expanded(
-          child: Row(
-            children: [
-              Radio<String>(
-                value: 'academic',
-                groupValue: _staffType,
-                onChanged: (value) {
-                  setState(() {
-                    _staffType = value!;
-                    _selectedFaculty = null;
-                    _selectedDepartment = null;
-                  });
-                },
-                activeColor: AppColors.electricPurple,
-              ),
-              Expanded(
-                child: Text(
-                  'Academic',
-                  style: GoogleFonts.poppins(fontSize: 14, color: Colors.white),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
+Widget _buildStaffTypeRadios() {
+  return Row(
+    children: [
+      Expanded(
+        child: RadioListTile<String>(
+          title: const Text('Academic', style: TextStyle(color: Colors.white)),
+          value: 'academic',
+          groupValue: _staffType,
+          onChanged: (value) {
+            setState(() {
+              _staffType = value!;
+              _selectedFaculty = null;
+              _selectedDepartment = null;
+            });
+          },
+          activeColor: AppColors.electricPurple,
         ),
-        const SizedBox(width: 8),
-        // Non-Academic Radio - with Expanded to prevent overflow
-        Expanded(
-          child: Row(
-            children: [
-              Radio<String>(
-                value: 'non_academic',
-                groupValue: _staffType,
-                onChanged: (value) {
-                  setState(() {
-                    _staffType = value!;
-                    _selectedDivision = null;
-                  });
-                },
-                activeColor: AppColors.electricPurple,
-              ),
-              Expanded(
-                child: Text(
-                  'Non-Academic',
-                  style: GoogleFonts.poppins(fontSize: 14, color: Colors.white),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
+      ),
+      Expanded(
+        child: RadioListTile<String>(
+          title: const Text('Non-Academic', style: TextStyle(color: Colors.white)),
+          value: 'non_academic',
+          groupValue: _staffType,
+          onChanged: (value) {
+            setState(() {
+              _staffType = value!;
+              _selectedDivision = null;
+            });
+          },
+          activeColor: AppColors.electricPurple,
         ),
-      ],
-    ),
+      ),
+    ],
   );
 }
 

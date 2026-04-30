@@ -31,6 +31,8 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
   final _nicController = TextEditingController();
   final _phoneController = TextEditingController();
   final _dobController = TextEditingController();
+  final _levelController = TextEditingController();
+  final _semesterController = TextEditingController();
   
   final _fullNameFocusNode = FocusNode();
   final _emailFocusNode = FocusNode();
@@ -47,6 +49,9 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
   bool _isLoading = false;
 
   late final FirebaseService _firebaseService;
+
+  final List<String> _levels = ['Year 1', 'Year 2', 'Year 3', 'Year 4'];
+  final List<String> _semesters = ['Semester 1', 'Semester 2'];
 
   final List<String> _departments = [
     'Department of ICT',
@@ -182,76 +187,144 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
     );
   }
 
-  Future<void> _completeSignUp() async {
-    if (_formKey.currentState == null) return;
+ Future<void> _completeSignUp() async {
+  print('🔵=== STARTING SIGN UP ===🔵');
+  print('🔵=== STARTING SIGN UP ===🔵');
+  print('Email: ${_emailController.text.trim()}');
+  print('Level: "${_levelController.text.trim()}"');
+  print('Semester: "${_semesterController.text.trim()}"');
+  print('Department: $_selectedDepartment');
+  print('Degree: $_selectedDegree');
+  print('Intake: $_selectedIntake');
+  
+  // Validate level
+  if (_levelController.text.trim().isEmpty) {
+    print('❌ Level is EMPTY!');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please select your level'), backgroundColor: Colors.red),
+    );
+    return;
+  }
+  
+  // Validate semester
+  if (_semesterController.text.trim().isEmpty) {
+    print('❌ Semester is EMPTY!');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please select your semester'), backgroundColor: Colors.red),
+    );
+    return;
+  }
+  
+  // Validate level
+  if (_levelController.text.trim().isEmpty) {
+    print('❌ Level is empty');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please select your level'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+  
+  // Validate semester
+  if (_semesterController.text.trim().isEmpty) {
+    print('❌ Semester is empty');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please select your semester'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+  
+  print('🔵 Level: ${_levelController.text.trim()}');
+  print('🔵 Semester: ${_semesterController.text.trim()}');
+  print('🔵 Department: $_selectedDepartment');
+  print('🔵 Degree: $_selectedDegree');
+  print('🔵 Intake: $_selectedIntake');
+  
+  if (_selectedDepartment == null || _selectedDegree == null || _selectedIntake == null) {
+    print('❌ Missing department, degree or intake');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please select department, degree and intake'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+  
+  setState(() => _isLoading = true);
+
+  try {
+    print('🔵 Calling FirebaseService.signUpStudent...');
     
-    if (_selectedDepartment == null || _selectedDegree == null || _selectedIntake == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select department, degree and intake'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
+    final user = await _firebaseService.signUpStudent(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+      fullName: _fullNameController.text.trim(),
+      indexNumber: _indexNumberController.text.trim(),
+      campusId: _campusIdController.text.trim(),
+      nic: _nicController.text.trim(),
+      phone: _phoneController.text.trim(),
+      dob: _dobController.text.trim(),
+      department: _selectedDepartment!,
+      degree: _selectedDegree!,
+      intake: _selectedIntake!,
+      level: _levelController.text.trim(),
+      currentSemester: _semesterController.text.trim(),
+    );
+    
+    print('🔵 User created: ${user?.uid}');
+    setState(() => _isLoading = false);
+    
+    if (user != null && mounted) {
+      print('✅ Sign up successful! Showing email dialog...');
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => EmailVerificationDialog(
+          email: _emailController.text.trim(),
+          userRole: 'student',
+          userData: {
+            'fullName': _fullNameController.text.trim(),
+            'indexNumber': _indexNumberController.text.trim(),
+            'campusId': _campusIdController.text.trim(),
+            'nic': _nicController.text.trim(),
+            'phone': _phoneController.text.trim(),
+            'dob': _dobController.text.trim(),
+            'department': _selectedDepartment,
+            'degree': _selectedDegree,
+            'intake': _selectedIntake,
+            'level': _levelController.text.trim(),
+            'currentSemester': _semesterController.text.trim(),
+          },
         ),
       );
-      return;
-    }
-    
-    setState(() => _isLoading = true);
-
-    try {
-      final user = await _firebaseService.signUpStudent(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-        fullName: _fullNameController.text.trim(),
-        indexNumber: _indexNumberController.text.trim(),
-        campusId: _campusIdController.text.trim(),
-        nic: _nicController.text.trim(),
-        phone: _phoneController.text.trim(),
-        dob: _dobController.text.trim(),
-        department: _selectedDepartment!,
-        degree: _selectedDegree!,
-        intake: _selectedIntake!,
+    } else {
+      print('❌ User is null');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign up failed'), backgroundColor: Colors.red),
       );
-      
-      setState(() => _isLoading = false);
-      
-      if (user != null && mounted) {
-        if (mounted) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => EmailVerificationDialog(
-              email: _emailController.text.trim(),
-              userRole: 'student',
-              userData: {
-                'fullName': _fullNameController.text.trim(),
-                'indexNumber': _indexNumberController.text.trim(),
-                'campusId': _campusIdController.text.trim(),
-                'nic': _nicController.text.trim(),
-                'phone': _phoneController.text.trim(),
-                'dob': _dobController.text.trim(),
-                'department': _selectedDepartment,
-                'degree': _selectedDegree,
-                'intake': _selectedIntake,
-              },
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      setState(() => _isLoading = false);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+    }
+  } catch (e) {
+    print('❌ Error: $e');
+    setState(() => _isLoading = false);
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 5),
+        ),
+      );
     }
   }
+}
 
   Future<void> _selectDate() async {
     DateTime? picked = await showDatePicker(
@@ -475,62 +548,81 @@ class _StudentSignUpScreenState extends State<StudentSignUpScreen> {
   }
 
   Widget _buildStep3() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(20),
+    child: Column(
+      children: [
+        GlassDropdown(
+          value: _selectedDepartment,
+          items: _departments,
+          label: 'Department',
+          icon: Icons.school,
+          onChanged: (val) => setState(() { 
+            _selectedDepartment = val; 
+            _selectedDegree = null; 
+          }),
+        ),
+        const SizedBox(height: 16),
+        if (_selectedDepartment != null)
           GlassDropdown(
-            value: _selectedDepartment,
-            items: _departments,
-            label: 'Department',
-            icon: Icons.school,
-            onChanged: (val) => setState(() { 
-              _selectedDepartment = val; 
-              _selectedDegree = null; 
-            }),
+            value: _selectedDegree,
+            items: _degreesByDepartment[_selectedDepartment] ?? [],
+            label: 'Degree Program',
+            icon: Icons.book,
+            onChanged: (val) => setState(() => _selectedDegree = val),
           ),
-          const SizedBox(height: 16),
-          if (_selectedDepartment != null)
-            GlassDropdown(
-              value: _selectedDegree,
-              items: _degreesByDepartment[_selectedDepartment] ?? [],
-              label: 'Degree Program',
-              icon: Icons.book,
-              onChanged: (val) => setState(() => _selectedDegree = val),
-            ),
-          if (_selectedDepartment != null) const SizedBox(height: 16),
+        if (_selectedDepartment != null) const SizedBox(height: 16),
+        GlassDropdown(
+          value: _selectedIntake,
+          items: _intakes,
+          label: 'Intake',
+          icon: Icons.calendar_month,
+          onChanged: (val) => setState(() => _selectedIntake = val),
+        ),
           GlassDropdown(
-            value: _selectedIntake,
-            items: _intakes,
-            label: 'Intake',
-            icon: Icons.calendar_month,
-            onChanged: (val) => setState(() => _selectedIntake = val),
+  value: _levelController.text.isNotEmpty && _levels.contains(_levelController.text) 
+      ? _levelController.text 
+      : null,  // ✅ Use null if not valid
+  items: _levels,
+  label: 'Level',
+  icon: Icons.arrow_upward,
+  onChanged: (val) => setState(() => _levelController.text = val ?? ''),
+),
+        const SizedBox(height: 16),
+         GlassDropdown(
+  value: _semesterController.text.isNotEmpty && _semesters.contains(_semesterController.text) 
+      ? _semesterController.text 
+      : null,  // ✅ Use null if not valid
+  items: _semesters,
+  label: 'Semester',
+  icon: Icons.calendar_today,
+  onChanged: (val) => setState(() => _semesterController.text = val ?? ''),
+),
+        const SizedBox(height: 30),
+        Container(
+          width: double.infinity,
+          height: 55,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [AppColors.electricPurple, AppColors.softMagenta]),
+            borderRadius: BorderRadius.circular(16),
           ),
-          const SizedBox(height: 30),
-          Container(
-            width: double.infinity,
-            height: 55,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [AppColors.electricPurple, AppColors.softMagenta]),
-              borderRadius: BorderRadius.circular(16),
+          child: ElevatedButton(
+            onPressed: _completeSignUp,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             ),
-            child: ElevatedButton(
-              onPressed: _completeSignUp,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              child: Text(
-                'Complete Registration',
-                style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
-              ),
+            child: Text(
+              'Complete Registration',
+              style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildNavigationButtons() {
     if (_currentStep >= 2) return const SizedBox.shrink();

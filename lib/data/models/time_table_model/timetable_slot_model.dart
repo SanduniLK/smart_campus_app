@@ -1,20 +1,21 @@
 class TimetableSlot {
   final int? id;
+  final String? firestoreId; 
   final int courseId;
-  final int dayOfWeek;  // 1=Monday, 2=Tuesday... 6=Saturday, 7=Sunday
+  final int dayOfWeek;
   final String startTime;
   final String endTime;
   final String roomNumber;
   final String building;
-  final String type;  // Lecture, Lab, Tutorial
+  final String type;
   
-  // For display (joined from courses)
   String? courseCode;
   String? courseName;
   String? lecturerName;
 
   TimetableSlot({
     this.id,
+    this.firestoreId,  
     required this.courseId,
     required this.dayOfWeek,
     required this.startTime,
@@ -30,6 +31,7 @@ class TimetableSlot {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'firestoreId': firestoreId,  
       'courseId': courseId,
       'dayOfWeek': dayOfWeek,
       'startTime': startTime,
@@ -43,6 +45,7 @@ class TimetableSlot {
   factory TimetableSlot.fromMap(Map<String, dynamic> map) {
     return TimetableSlot(
       id: map['id'],
+      firestoreId: map['firestoreId'],  
       courseId: map['courseId'],
       dayOfWeek: map['dayOfWeek'],
       startTime: map['startTime'],

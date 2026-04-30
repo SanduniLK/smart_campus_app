@@ -1,8 +1,8 @@
+// lib/business_logic/timetable/timetable_bloc.dart
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:smart_campus_app/data/repositories/time_table/timetable_repository.dart';
 import 'timetable_event.dart';
 import 'timetable_state.dart';
-
+import '../../data/repositories/time_table/timetable_repository.dart';
 
 class TimetableBloc extends Bloc<TimetableEvent, TimetableState> {
   final TimetableRepository _repository;
@@ -12,12 +12,9 @@ class TimetableBloc extends Bloc<TimetableEvent, TimetableState> {
         super(TimetableInitial()) {
     on<LoadTimetableByDay>(_onLoadTimetableByDay);
     on<LoadAllTimetable>(_onLoadAllTimetable);
-    on<LoadCourses>(_onLoadCourses);
-    on<AddCourse>(_onAddCourse);
-    on<DeleteCourse>(_onDeleteCourse);
-    on<AddTimetableSlot>(_onAddTimetableSlot);
-    on<UpdateTimetableSlot>(_onUpdateTimetableSlot);
-    on<DeleteTimetableSlot>(_onDeleteTimetableSlot);
+    on<AddTimetableEntry>(_onAddTimetableEntry);
+    on<UpdateTimetableEntry>(_onUpdateTimetableEntry);
+    on<DeleteTimetableEntry>(_onDeleteTimetableEntry);
     on<RefreshTimetable>(_onRefreshTimetable);
   }
 
@@ -27,8 +24,8 @@ class TimetableBloc extends Bloc<TimetableEvent, TimetableState> {
   ) async {
     emit(TimetableLoading());
     try {
-      final slots = await _repository.getTimetableByDay(event.dayOfWeek);
-      emit(TimetableLoaded(slots: slots, currentDay: event.dayOfWeek));
+      final entries = await _repository.getEntriesByDay(event.dayOfWeek);
+      emit(TimetableLoaded(entries: entries, currentDay: event.dayOfWeek));
     } catch (e) {
       emit(TimetableError(e.toString()));
     }
@@ -40,84 +37,46 @@ class TimetableBloc extends Bloc<TimetableEvent, TimetableState> {
   ) async {
     emit(TimetableLoading());
     try {
-      final slots = await _repository.getAllTimetableSlots();
-      emit(TimetableLoaded(slots: slots, currentDay: 1));
+      final entries = await _repository.getAllTimetableEntries();
+      emit(TimetableLoaded(entries: entries, currentDay: 1));
     } catch (e) {
       emit(TimetableError(e.toString()));
     }
   }
 
-  Future<void> _onLoadCourses(
-    LoadCourses event,
+  Future<void> _onAddTimetableEntry(
+    AddTimetableEntry event,
     Emitter<TimetableState> emit,
   ) async {
     try {
-      final courses = await _repository.getAllCourses();
-      emit(CoursesLoaded(courses));
-    } catch (e) {
-      emit(TimetableError(e.toString()));
-    }
-  }
-
-  Future<void> _onAddCourse(
-    AddCourse event,
-    Emitter<TimetableState> emit,
-  ) async {
-    try {
-      await _repository.addCourse(event.course);
-      emit(const TimetableOperationSuccess('Course added successfully'));
-      add(LoadCourses());
-    } catch (e) {
-      emit(TimetableError(e.toString()));
-    }
-  }
-
-  Future<void> _onDeleteCourse(
-    DeleteCourse event,
-    Emitter<TimetableState> emit,
-  ) async {
-    try {
-      await _repository.deleteCourse(event.courseId);
-      emit(const TimetableOperationSuccess('Course deleted successfully'));
-      add(LoadCourses());
-    } catch (e) {
-      emit(TimetableError(e.toString()));
-    }
-  }
-
-  Future<void> _onAddTimetableSlot(
-    AddTimetableSlot event,
-    Emitter<TimetableState> emit,
-  ) async {
-    try {
-      await _repository.addTimetableSlot(event.slot);
-      emit(const TimetableOperationSuccess('Timetable slot added successfully'));
+      await _repository.addTimetableEntry(event.entry);
+      emit(const TimetableOperationSuccess('Timetable entry added successfully'));
       add(LoadAllTimetable());
     } catch (e) {
       emit(TimetableError(e.toString()));
     }
   }
 
-  Future<void> _onUpdateTimetableSlot(
-    UpdateTimetableSlot event,
+  Future<void> _onUpdateTimetableEntry(
+    UpdateTimetableEntry event,
     Emitter<TimetableState> emit,
   ) async {
     try {
-      await _repository.updateTimetableSlot(event.slot);
-      emit(const TimetableOperationSuccess('Timetable slot updated successfully'));
+      await _repository.updateTimetableEntry(event.entry);
+      emit(const TimetableOperationSuccess('Timetable entry updated successfully'));
       add(LoadAllTimetable());
     } catch (e) {
       emit(TimetableError(e.toString()));
     }
   }
 
-  Future<void> _onDeleteTimetableSlot(
-    DeleteTimetableSlot event,
+  Future<void> _onDeleteTimetableEntry(
+    DeleteTimetableEntry event,
     Emitter<TimetableState> emit,
   ) async {
     try {
-      await _repository.deleteTimetableSlot(event.slotId);
-      emit(const TimetableOperationSuccess('Timetable slot deleted successfully'));
+      await _repository.deleteTimetableEntry(event.entryId, null);
+      emit(const TimetableOperationSuccess('Timetable entry deleted successfully'));
       add(LoadAllTimetable());
     } catch (e) {
       emit(TimetableError(e.toString()));

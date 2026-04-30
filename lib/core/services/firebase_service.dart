@@ -1,14 +1,16 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'database_service.dart';
+import '../../data/models/time_table_model/course_model.dart';
+import '../../data/models/time_table_model/timetable_entry_model.dart';
 
 class FirebaseService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final DatabaseService _db = DatabaseService();
 
-  static const String ROLE_STUDENT = 'student';
-  static const String ROLE_STAFF = 'staff';
+  static const String roleStudent = 'student';
+  static const String roleStaff = 'staff';
 
   User? get currentUser => _auth.currentUser;
 
@@ -28,18 +30,16 @@ class FirebaseService {
       if (user != null) {
         await user.reload();
         
-        // ✅ Get user data from Firestore
         final userDoc = await _firestore.collection('users').doc(user.uid).get();
         
         if (userDoc.exists) {
           final userData = userDoc.data()!;
           
-          // ✅ Sync to SQLite for offline cache
           await _db.insertOrUpdateUser({
             'uid': user.uid,
             'email': user.email ?? email,
             'fullName': userData['fullName'] ?? '',
-            'role': userData['role'] ?? ROLE_STUDENT,
+            'role': userData['role'] ?? roleStudent,
             'staffType': userData['staffType'],
             'isEmailVerified': user.emailVerified ? 1 : 0,
             'createdAt': userData['createdAt']?.toString() ?? DateTime.now().toIso8601String(),
@@ -81,9 +81,10 @@ class FirebaseService {
     required String department,
     required String degree,
     required String intake,
+    required String level,              
+    required String currentSemester, 
   }) async {
     try {
-      // 1. Create user in Firebase Auth
       final result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -95,12 +96,11 @@ class FirebaseService {
         await user.updateDisplayName(fullName);
         await user.reload();
 
-        // 2. ✅ Save to FIRESTORE (Cloud)
         final userData = {
           'uid': user.uid,
           'email': email,
           'fullName': fullName,
-          'role': ROLE_STUDENT,
+          'role': roleStudent,
           'indexNumber': indexNumber,
           'campusId': campusId,
           'nic': nic,
@@ -115,12 +115,11 @@ class FirebaseService {
         
         await _firestore.collection('users').doc(user.uid).set(userData);
 
-        // 3. ✅ Save to SQLITE (Local Cache)
         await _db.insertOrUpdateUser({
           'uid': user.uid,
           'email': email,
           'fullName': fullName,
-          'role': ROLE_STUDENT,
+          'role': roleStudent,
           'staffType': null,
           'isEmailVerified': 0,
           'createdAt': DateTime.now().toIso8601String(),
@@ -139,14 +138,13 @@ class FirebaseService {
           'department': department,
           'degree': degree,
           'intake': intake,
-          'currentSemester': 1,
-          'batchYear': int.tryParse(intake) ?? 2024,
+          'level': level,
+          'currentSemester': currentSemester,
         });
 
-        // 4. Send email verification
         await user.sendEmailVerification();
         
-        print('✅ STUDENT account created in Firebase & Firestore: $email');
+        print('✅ STUDENT account created: $email');
       }
 
       return user;
@@ -168,7 +166,6 @@ class FirebaseService {
     String? staffType,
   }) async {
     try {
-      // 1. Create user in Firebase Auth
       final result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -180,12 +177,11 @@ class FirebaseService {
         await user.updateDisplayName(fullName);
         await user.reload();
 
-        // 2. ✅ Save to FIRESTORE (Cloud)
         final userData = {
           'uid': user.uid,
           'email': email,
           'fullName': fullName,
-          'role': ROLE_STAFF,
+          'role': roleStaff,
           'staffType': staffType ?? 'academic',
           'staffId': staffId,
           'faculty': faculty,
@@ -196,12 +192,11 @@ class FirebaseService {
         
         await _firestore.collection('users').doc(user.uid).set(userData);
 
-        // 3. ✅ Save to SQLITE (Local Cache)
         await _db.insertOrUpdateUser({
           'uid': user.uid,
           'email': email,
           'fullName': fullName,
-          'role': ROLE_STAFF,
+          'role': roleStaff,
           'staffType': staffType ?? 'academic',
           'isEmailVerified': 0,
           'createdAt': DateTime.now().toIso8601String(),
@@ -220,10 +215,9 @@ class FirebaseService {
           'workLocation': '',
         });
 
-        // 4. Send email verification
         await user.sendEmailVerification();
         
-        print('✅ STAFF account created in Firebase & Firestore: $email');
+        print('✅ STAFF account created: $email');
       }
 
       return user;
@@ -287,7 +281,153 @@ class FirebaseService {
     }
   }
 
-  // ==================== CHECK EMAIL VERIFIED ====================
+  // ==================== COURSE FIRESTORE OPERATIONS ====================
+  Future<String> saveCourseToFirestore(Course course) async {
+    try {
+      final docRef = _firestore.collection('courses').doc();
+      await docRef.set(course.toFirestore());
+      print('✅ Course saved to Firestore: ${docRef.id}');
+      return docRef.id;
+    } catch (e) {
+      print('❌ Error saving course to Firestore: $e');
+      throw e;
+    }
+  }
+
+  Future<void> updateCourseInFirestore(String firestoreId, Course course) async {
+    try {
+      await _firestore.collection('courses').doc(firestoreId).update(course.toFirestore());
+      print('✅ Course updated in Firestore: $firestoreId');
+    } catch (e) {
+      print('❌ Error updating course in Firestore: $e');
+      throw e;
+    }
+  }
+
+  Future<void> deleteCourseFromFirestore(String firestoreId) async {
+    try {
+      await _firestore.collection('courses').doc(firestoreId).delete();
+      print('✅ Course deleted from Firestore: $firestoreId');
+    } catch (e) {
+      print('❌ Error deleting course from Firestore: $e');
+      throw e;
+    }
+  }
+
+  Future<void> syncCoursesFromFirestoreToSQLite() async {
+    try {
+      final snapshot = await _firestore.collection('courses').get();
+      
+      for (var doc in snapshot.docs) {
+        final course = Course.fromFirestore(doc);
+        await _db.insertOrUpdateCourse(course);
+      }
+      print('✅ Synced ${snapshot.docs.length} courses from Firestore');
+    } catch (e) {
+      print('❌ Error syncing courses: $e');
+    }
+  }
+
+  Future<void> syncLocalCoursesToFirestore() async {
+    try {
+      final unsyncedCourses = await _db.getUnsyncedCourses();
+      
+      for (var course in unsyncedCourses) {
+        try {
+          String firestoreId;
+          
+          if (course.firestoreId == null) {
+            firestoreId = await saveCourseToFirestore(course);
+            await _db.updateCourse(course.id!, {'firestoreId': firestoreId});
+          } else {
+            await updateCourseInFirestore(course.firestoreId!, course);
+          }
+          
+          await _db.updateCourse(course.id!, {'isSynced': 1});
+        } catch (e) {
+          print('Failed to sync course ${course.id}: $e');
+        }
+      }
+      print('✅ Synced ${unsyncedCourses.length} local courses');
+    } catch (e) {
+      print('❌ Error syncing local courses: $e');
+    }
+  }
+
+  // ==================== TIMETABLE FIRESTORE OPERATIONS ====================
+  Future<String> saveTimetableToFirestore(TimetableEntry entry) async {
+    try {
+      final docRef = _firestore.collection('timetable').doc();
+      await docRef.set(entry.toFirestore());
+      print('✅ Timetable saved to Firestore: ${docRef.id}');
+      return docRef.id;
+    } catch (e) {
+      print('❌ Error saving to Firestore: $e');
+      throw e;
+    }
+  }
+
+  Future<void> updateTimetableInFirestore(String firestoreId, TimetableEntry entry) async {
+    try {
+      await _firestore.collection('timetable').doc(firestoreId).update(entry.toFirestore());
+      print('✅ Timetable updated in Firestore: $firestoreId');
+    } catch (e) {
+      print('❌ Error updating in Firestore: $e');
+      throw e;
+    }
+  }
+
+  Future<void> deleteTimetableFromFirestore(String firestoreId) async {
+    try {
+      await _firestore.collection('timetable').doc(firestoreId).delete();
+      print('✅ Timetable deleted from Firestore: $firestoreId');
+    } catch (e) {
+      print('❌ Error deleting from Firestore: $e');
+      throw e;
+    }
+  }
+
+  Future<void> syncTimetableFromFirestoreToSQLite() async {
+    try {
+      final snapshot = await _firestore.collection('timetable').get();
+      
+      for (var doc in snapshot.docs) {
+        final entry = TimetableEntry.fromFirestore(doc);
+        await _db.insertOrUpdateTimetableEntry(entry);
+      }
+      print('✅ Synced ${snapshot.docs.length} entries from Firestore');
+    } catch (e) {
+      print('❌ Error syncing from Firestore: $e');
+    }
+  }
+
+  Future<void> syncLocalTimetableToFirestore() async {
+    try {
+      final unsyncedEntries = await _db.getUnsyncedTimetableEntries();
+      
+      for (var entry in unsyncedEntries) {
+        try {
+          String firestoreId;
+          
+          if (entry.firestoreId == null) {
+            firestoreId = await saveTimetableToFirestore(entry);
+            await _db.updateTimetableFirestoreId(entry.id!, firestoreId);
+          } else {
+            await updateTimetableInFirestore(entry.firestoreId!, entry);
+          }
+          
+          await _db.markTimetableAsSynced(entry.id!);
+        } catch (e) {
+          print('Failed to sync entry ${entry.id}: $e');
+        }
+      }
+      print('✅ Synced ${unsyncedEntries.length} local entries');
+    } catch (e) {
+      print('❌ Error syncing to Firestore: $e');
+    }
+  }
+
+  // ==================== EMAIL VERIFICATION ====================
   Future<bool> checkEmailVerified() async {
     final user = _auth.currentUser;
     if (user != null) {
@@ -297,7 +437,6 @@ class FirebaseService {
     return false;
   }
 
-  // ==================== REFRESH VERIFICATION STATUS ====================
   Future<bool> refreshUserVerificationStatus() async {
     try {
       final user = _auth.currentUser;
@@ -305,7 +444,6 @@ class FirebaseService {
         await user.reload();
         final isVerified = user.emailVerified;
         
-        // Update both SQLite and Firestore
         await _db.updateEmailVerificationStatus(user.uid, isVerified);
         await _firestore.collection('users').doc(user.uid).update({
           'isEmailVerified': isVerified,
@@ -320,7 +458,6 @@ class FirebaseService {
     }
   }
 
-  // ==================== SEND EMAIL VERIFICATION ====================
   Future<void> sendEmailVerification() async {
     final user = _auth.currentUser;
     if (user != null && !user.emailVerified) {
@@ -332,7 +469,6 @@ class FirebaseService {
   Future<Map<String, dynamic>?> getCurrentUserData() async {
     final user = _auth.currentUser;
     if (user != null) {
-      // Try Firestore first, fallback to SQLite
       final firestoreData = await getUserFromFirestore(user.uid);
       if (firestoreData != null) {
         return firestoreData;
@@ -341,38 +477,43 @@ class FirebaseService {
     }
     return null;
   }
-Future<void> deleteUserFromFirestore(String userId) async {
-  try {
-    await _firestore.collection('users').doc(userId).delete();
-    print('✅ User deleted from Firestore');
-  } catch (e) {
-    print('❌ Error deleting from Firestore: $e');
-    throw e;
-  }
-}
-Future<void> sendPasswordResetEmail(String email) async {
-  try {
-    await _auth.sendPasswordResetEmail(email: email);
-    print('✅ Password reset email sent to: $email');
-  } on FirebaseAuthException catch (e) {
-    throw _handlePasswordResetError(e);
-  } catch (e) {
-    throw 'An error occurred. Please try again.';
-  }
-}
 
-String _handlePasswordResetError(FirebaseAuthException e) {
-  switch (e.code) {
-    case 'user-not-found':
-      return 'No account found with this email address.';
-    case 'invalid-email':
-      return 'Invalid email address format.';
-    case 'too-many-requests':
-      return 'Too many requests. Please try again later.';
-    default:
-      return 'Failed to send password reset email. Please try again.';
+  // ==================== DELETE USER ====================
+  Future<void> deleteUserFromFirestore(String userId) async {
+    try {
+      await _firestore.collection('users').doc(userId).delete();
+      print('✅ User deleted from Firestore');
+    } catch (e) {
+      print('❌ Error deleting from Firestore: $e');
+      throw e;
+    }
   }
-}
+
+  // ==================== PASSWORD RESET ====================
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+      print('✅ Password reset email sent to: $email');
+    } on FirebaseAuthException catch (e) {
+      throw _handlePasswordResetError(e);
+    } catch (e) {
+      throw 'An error occurred. Please try again.';
+    }
+  }
+
+  String _handlePasswordResetError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'user-not-found':
+        return 'No account found with this email address.';
+      case 'invalid-email':
+        return 'Invalid email address format.';
+      case 'too-many-requests':
+        return 'Too many requests. Please try again later.';
+      default:
+        return 'Failed to send password reset email. Please try again.';
+    }
+  }
+
   // ==================== SIGN OUT ====================
   Future<void> signOut() async {
     final user = _auth.currentUser;

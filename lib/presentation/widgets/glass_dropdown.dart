@@ -2,7 +2,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-
 class GlassDropdown extends StatelessWidget {
   final String? value;
   final List<String> items;
@@ -21,6 +20,9 @@ class GlassDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Check if value exists in items, if not, use null
+    final isValidValue = value != null && items.contains(value);
+    
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: BackdropFilter(
@@ -35,7 +37,7 @@ class GlassDropdown extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
           child: DropdownButtonFormField<String>(
-            value: value,
+            value: isValidValue ? value : null,  // ✅ Fixed: Use null if value not in items
             items: items.map((item) {
               return DropdownMenuItem(
                 value: item,

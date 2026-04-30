@@ -63,6 +63,8 @@ class AuthRepository {
     required String department,
     required String degree,
     required String intake,
+    required String level,              // ✅ ADD THIS
+    required String currentSemester,
   }) async {
     try {
       final user = await _firebaseService.signUpStudent(
@@ -77,6 +79,9 @@ class AuthRepository {
         department: department,
         degree: degree,
         intake: intake,
+        level: level,                    // ✅ ADD THIS
+        currentSemester: currentSemester,
+        
       );
       
       if (user != null) {
