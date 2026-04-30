@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
 import 'package:smart_campus_app/core/services/database_service.dart';
 import 'package:smart_campus_app/core/services/firebase_service.dart';
+import 'package:smart_campus_app/presentation/screens/announcements/announcements_screen.dart';
 import 'package:smart_campus_app/presentation/screens/events/events_list_screen.dart';
 import 'package:smart_campus_app/presentation/screens/events/create_event_screen.dart';
 import 'package:smart_campus_app/presentation/screens/events/student_events_screen.dart';
-
 import 'package:smart_campus_app/presentation/screens/time_table/student_timetable_screen.dart';
-import 'package:smart_campus_app/presentation/widgets/student_dashboard/announcements_list.dart';
+import 'package:smart_campus_app/presentation/widgets/announcement/role_based_announcements.dart';
 import 'package:smart_campus_app/presentation/widgets/student_dashboard/next_class_card.dart';
 import 'package:smart_campus_app/presentation/widgets/student_dashboard/progress_stats.dart';
-import 'package:smart_campus_app/presentation/widgets/student_dashboard/quick_access_grid.dart';
 import 'package:smart_campus_app/presentation/widgets/student_dashboard/welcome_header.dart';
 import 'package:smart_campus_app/presentation/widgets/glass_card.dart';
 
@@ -28,6 +27,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   List<Map<String, dynamic>> _todayClasses = [];
   List<Map<String, dynamic>> _upcomingClasses = [];
   final DatabaseService _db = DatabaseService();
+  
+  // Bottom Navigation Bar state
+  int _currentIndex = 0;
 
   @override
   void initState() {
@@ -116,7 +118,44 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
-  
+  void _navigateToAnnouncements() {
+    final firebaseService = FirebaseService();
+    final user = firebaseService.currentUser;
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AllAnnouncementsScreen(
+          userRole: 'student',
+          userId: user?.uid ?? '',
+          userName: user?.displayName ?? 'Student',
+          canPost: false,
+        ),
+      ),
+    );
+  }
+
+  void _onNavBarTap(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+    
+    // Handle navigation based on index
+    switch (index) {
+      case 0:
+        // Already on dashboard
+        break;
+      case 1:
+        _navigateToTimetable();
+        break;
+      case 2:
+        _navigateToMyEvents();
+        break;
+      case 3:
+        _navigateToAnnouncements();
+        break;
+    }
+  }
 
   Widget _buildClassCard(Map<String, dynamic> entry, {bool isUpcoming = false}) {
     final now = DateTime.now();
@@ -321,21 +360,14 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               WelcomeHeader(
-                userName: user?.displayName ?? 'Kavya Perera',
+                userName: user?.displayName ?? 'Student',
               ),
               const SizedBox(height: 24),
               
-              const NextClassCard(
-                className: 'ICT4153 – Mobile App Dev',
-                startTime: '10:00 AM',
-                endTime: '12:00 PM',
-                location: 'Room A204 · Building A · 2nd Floor',
-                room: 'Room A204',
-                building: 'Building A',
-                floor: '2nd Floor',
-                professor: 'Dr. Nimal Silva',
-                type: 'Theory',
-                minutesRemaining: 25,
+              NextClassCard(
+                studentLevel: _studentLevel,
+                studentSemester: _studentSemester,
+                studentId: user?.uid ?? '',
               ),
               const SizedBox(height: 20),
               
@@ -389,7 +421,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               ),
               const SizedBox(height: 12),
               
-              // ✅ UPDATED Quick Access Grid - 4 buttons
+              // Quick Access Row 1
               Row(
                 children: [
                   Expanded(
@@ -414,6 +446,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 ],
               ),
               const SizedBox(height: 12),
+              
+              // Quick Access Row 2
               Row(
                 children: [
                   Expanded(
@@ -428,27 +462,94 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildQuickActionCard(
-                      icon: Icons.map,
-                      title: 'Campus Map',
-                      subtitle: 'Find locations',
+                      icon: Icons.announcement,
+                      title: 'Announcements',
+                      subtitle: 'View updates',
                       color: AppColors.softMagenta,
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Campus Map Coming Soon')),
-                        );
-                      },
+                      onTap: _navigateToAnnouncements,
                     ),
                   ),
                 ],
               ),
+              
               const SizedBox(height: 24),
               
-              AnnouncementsList(
-                onViewAll: () {},
+              // STUDENT ANNOUNCEMENTS - VIEW ONLY
+              const Text(
+                'LATEST ANNOUNCEMENTS',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1,
+                  color: AppColors.textSecondary,
+                ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
+              
+              RoleBasedAnnouncements(
+                userRole: 'student',
+                userId: user?.uid ?? '',
+                userName: user?.displayName ?? 'Student',
+                showViewAll: true,
+                limit: 3,
+                showCreateButton: false,
+              ),
+              
+              const SizedBox(height: 80), // Space for bottom nav
             ],
           ),
+        ),
+      ),
+      // Custom Bottom Navigation Bar
+      bottomNavigationBar: _buildCustomBottomNavBar(),
+    );
+  }
+
+  Widget _buildCustomBottomNavBar() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 20,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: AppColors.glassSurface,
+          selectedItemColor: AppColors.electricPurple,
+          unselectedItemColor: AppColors.textSecondary,
+          currentIndex: _currentIndex,
+          onTap: _onNavBarTap,
+          elevation: 0,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined),
+              activeIcon: Icon(Icons.home),
+              label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.schedule_outlined),
+              activeIcon: Icon(Icons.schedule),
+              label: 'Timetable',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.event_available_outlined),
+              activeIcon: Icon(Icons.event_available),
+              label: 'Events',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.announcement_outlined),
+              activeIcon: Icon(Icons.announcement),
+              label: 'Announcements',
+            ),
+          ],
         ),
       ),
     );

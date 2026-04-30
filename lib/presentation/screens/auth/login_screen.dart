@@ -132,69 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       _buildLoginCard(),
                       const SizedBox(height: 24),
                       _buildSignUpLink(),
-                      ElevatedButton(
-  onPressed: () async {
-    final db = DatabaseService();
-    final database = await db.database;
-    
-    // Create events table
-    try {
-      await database.execute('''
-        CREATE TABLE IF NOT EXISTS events(
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          firestoreId TEXT,
-          title TEXT NOT NULL,
-          description TEXT,
-          eventDate TEXT NOT NULL,
-          startTime TEXT,
-          endTime TEXT,
-          location TEXT NOT NULL,
-          capacity INTEGER NOT NULL,
-          registeredCount INTEGER DEFAULT 0,
-          qrCode TEXT,
-          isActive INTEGER DEFAULT 1,
-          status TEXT DEFAULT 'pending',
-          createdBy TEXT NOT NULL,
-          createdByRole TEXT NOT NULL,
-          createdByEmail TEXT,
-          approvedBy TEXT,
-          approvedAt TEXT,
-          createdAt TEXT,
-          updatedAt TEXT,
-          isSynced INTEGER DEFAULT 1
-        )
-      ''');
-      print('✅ Events table created');
-    } catch (e) { print('Events table error: $e'); }
-    
-    // Create event_registrations table
-    try {
-      await database.execute('''
-        CREATE TABLE IF NOT EXISTS event_registrations(
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          firestoreId TEXT,
-          eventId INTEGER NOT NULL,
-          userId TEXT NOT NULL,
-          registrationDate TEXT NOT NULL,
-          qrScanned INTEGER DEFAULT 0,
-          scannedAt TEXT,
-          attendanceStatus TEXT DEFAULT 'Pending',
-          qrCodeData TEXT,
-          isSynced INTEGER DEFAULT 1,
-          FOREIGN KEY (eventId) REFERENCES events(id) ON DELETE CASCADE,
-          FOREIGN KEY (userId) REFERENCES users(uid) ON DELETE CASCADE,
-          UNIQUE(eventId, userId)
-        )
-      ''');
-      print('✅ Event registrations table created');
-    } catch (e) { print('Event registrations error: $e'); }
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Database fixed! Restart app.')),
-    );
-  },
-  child: const Text('Create Events Tables'),
-)
+                      
                     ],
                   ),
                 ),
@@ -265,62 +203,16 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 20),
               _buildPasswordField(),
               const SizedBox(height: 16),
-              _buildRememberRow(),
-              const SizedBox(height: 24),
+              
+              const SizedBox(height: 40),
               _buildLoginButton(),
               
-              // ✅ PASTE THE FIX BUTTON HERE
-              const SizedBox(height: 16),
-              _buildFixDatabaseButton(),  // Add this line
+                // Add this line
               
             ],
           ),
         ),
       ),
-    ),
-  );
-}
-Widget _buildFixDatabaseButton() {
-  return Container(
-    width: double.infinity,
-    child: ElevatedButton(
-      onPressed: () async {
-        final db = DatabaseService();
-        final database = await db.database;
-        
-        // Check existing columns
-        final columns = await database.rawQuery("PRAGMA table_info(students)");
-        print('Existing columns: ${columns.map((c) => c['name'])}');
-        
-        // Add level column
-        try {
-          await database.execute('ALTER TABLE students ADD COLUMN level TEXT');
-          print('✅ Added level column');
-        } catch (e) {
-          print('level: $e');
-        }
-        
-        // Add currentSemester column
-        try {
-          await database.execute('ALTER TABLE students ADD COLUMN currentSemester TEXT');
-          print('✅ Added currentSemester column');
-        } catch (e) {
-          print('currentSemester: $e');
-        }
-        
-        // Verify columns were added
-        final newColumns = await database.rawQuery("PRAGMA table_info(students)");
-        print('New columns: ${newColumns.map((c) => c['name'])}');
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Database fixed! Try signing up again.')),
-        );
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.orange,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-      child: const Text('Fix Database Now', style: TextStyle(color: Colors.white)),
     ),
   );
 }
@@ -396,31 +288,7 @@ Widget _buildFixDatabaseButton() {
     );
   }
 
-  Widget _buildRememberRow() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            Checkbox(
-              value: _rememberMe,
-              onChanged: (value) => setState(() => _rememberMe = value ?? false),
-              fillColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) return AppColors.electricPurple;
-                return Colors.transparent;
-              }),
-            ),
-            Text('Remember me', style: GoogleFonts.poppins(fontSize: 13, color: Colors.white70)),
-          ],
-        ),
-        TextButton(
-          onPressed: () {},
-          child: Text('Forgot Password?', style: GoogleFonts.poppins(fontSize: 13, color: AppColors.electricPurple)),
-        ),
-      ],
-    );
-  }
-
+  
   Widget _buildLoginButton() {
     return Container(
       width: double.infinity,

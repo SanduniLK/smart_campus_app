@@ -7,7 +7,9 @@ import 'package:smart_campus_app/business_logic/auth_bloc/auth_event.dart';
 import 'package:smart_campus_app/business_logic/auth_bloc/auth_state.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
 import 'package:smart_campus_app/core/services/database_service.dart';
+import 'package:smart_campus_app/core/services/firebase_service.dart';
 import 'package:smart_campus_app/data/models/user_model.dart';
+import 'package:smart_campus_app/presentation/screens/announcements/announcements_screen.dart';
 import 'package:smart_campus_app/presentation/screens/events/create_event_screen.dart';
 import 'package:smart_campus_app/presentation/screens/events/events_list_screen.dart';
 import 'package:smart_campus_app/presentation/screens/events/pending_events_screen.dart';
@@ -15,6 +17,7 @@ import 'package:smart_campus_app/presentation/widgets/glass_card.dart';
 import 'package:smart_campus_app/presentation/screens/time_table/view_timetable_screen.dart';
 import 'package:smart_campus_app/presentation/screens/time_table/edit_timetable_screen.dart';
 import 'package:smart_campus_app/presentation/screens/profile/profile_screen.dart';
+import 'package:smart_campus_app/presentation/widgets/announcement/role_based_announcements.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AcademicDashboard extends StatefulWidget {
@@ -102,6 +105,37 @@ class _AcademicDashboardState extends State<AcademicDashboard> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const PendingEventsScreen()),
+    );
+  }
+
+  void _navigateToAllAnnouncements() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AllAnnouncementsScreen(
+          userRole: 'academic_staff',
+          userId: _user.id,
+          userName: _user.fullName,
+          canPost: true, // Academic staff can post announcements
+        ),
+      ),
+    );
+  }
+
+  void _showCreateAnnouncementSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => CreateAnnouncementSheet(
+        userRole: 'academic_staff',
+        userId: _user.id,
+        userName: _user.fullName,
+        onCreated: () {
+          // Refresh the announcements list
+          setState(() {});
+        },
+      ),
     );
   }
 
@@ -214,6 +248,11 @@ class _AcademicDashboardState extends State<AcademicDashboard> {
           _buildQuickActions(),
           const SizedBox(height: 24),
           _buildMySchedule(),
+          const SizedBox(height: 24),
+          
+          // Announcements Section for Academic Staff
+          _buildAnnouncementsSection(),
+          
           const SizedBox(height: 16),
           
           // Database Fix Button (only for debugging - can be removed later)
@@ -237,6 +276,60 @@ class _AcademicDashboardState extends State<AcademicDashboard> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildAnnouncementsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'ANNOUNCEMENTS',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            Row(
+              children: [
+                // Post Announcement Button
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline, color: AppColors.electricPurple),
+                  onPressed: _showCreateAnnouncementSheet,
+                  tooltip: 'Post Announcement',
+                ),
+                // View All Button
+                TextButton(
+                  onPressed: _navigateToAllAnnouncements,
+                  child: Text(
+                    'View All',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.electricPurple,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        
+        // Role-based announcements - Academic Staff can VIEW and POST
+        RoleBasedAnnouncements(
+          userRole: 'academic_staff',
+          userId: _user.id,
+          userName: _user.fullName,
+          showViewAll: false, // We already have View All button above
+          limit: 3,
+          showCreateButton: false, // We have separate Post button
+        ),
+      ],
     );
   }
 
@@ -403,10 +496,10 @@ class _AcademicDashboardState extends State<AcademicDashboard> {
             const SizedBox(width: 12),
             Expanded(
               child: _buildActionButton(
-                Icons.add,
-                'Quick Event',
+                Icons.announcement,
+                'Post Announcement',
                 AppColors.vibrantYellow,
-                _navigateToCreateEvent,
+                _showCreateAnnouncementSheet,
               ),
             ),
           ],

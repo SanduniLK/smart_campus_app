@@ -7,7 +7,11 @@ import 'package:smart_campus_app/business_logic/auth_bloc/auth_bloc.dart';
 import 'package:smart_campus_app/business_logic/auth_bloc/auth_state.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
 import 'package:smart_campus_app/core/services/database_service.dart';
+import 'package:smart_campus_app/core/services/firebase_service.dart';
 import 'package:smart_campus_app/data/models/user_model.dart';
+import 'package:smart_campus_app/presentation/screens/announcements/announcements_screen.dart';
+import 'package:smart_campus_app/presentation/screens/profile/profile_screen.dart';
+import 'package:smart_campus_app/presentation/widgets/announcement/role_based_announcements.dart';
 import 'package:smart_campus_app/presentation/widgets/glass_card.dart';
 import 'package:smart_campus_app/presentation/screens/time_table/create_timetable_screen.dart';
 import 'package:smart_campus_app/presentation/screens/time_table/view_timetable_screen.dart';
@@ -22,6 +26,7 @@ class NonAcademicDashboard extends StatefulWidget {
 
 class _NonAcademicDashboardState extends State<NonAcademicDashboard> {
   late UserModel _user;
+  int _currentIndex = 0;
 
   @override
   void didChangeDependencies() {
@@ -75,70 +80,74 @@ class _NonAcademicDashboardState extends State<NonAcademicDashboard> {
     );
   }
 
-  Future<void> _addSampleData() async {
-    final db = DatabaseService();
+  void _navigateToAllAnnouncements() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AllAnnouncementsScreen(
+          userRole: 'non_academic_staff',
+          userId: _user.id,
+          userName: _user.fullName,
+          canPost: true,
+        ),
+      ),
+    );
+  }
+
+  void _navigateToProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+    );
+  }
+
+  void _showCreateAnnouncementSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => CreateAnnouncementSheet(
+        userRole: 'non_academic_staff',
+        userId: _user.id,
+        userName: _user.fullName,
+        onCreated: () {
+          setState(() {});
+        },
+      ),
+    );
+  }
+
+  
+
+  void _onNavBarTap(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
     
-    try {
-      final academicStaff = await db.getAcademicStaff();
-      if (academicStaff.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No academic staff found! Please add academic staff first.')),
-        );
-        return;
-      }
-      
-      final lecturer = academicStaff.first;
-      
-      final sampleEntries = [
-        {
-          'lecturerName': lecturer['fullName'],
-          'level': 'Year 3',
-          'semester': 'Semester 1',
-          'courseId': 'ICT4153',
-          'courseName': 'Mobile Application Development',
-          'dayOfWeek': 1,
-          'startTime': '09:00',
-          'endTime': '11:00',
-          'roomNumber': 'A204',
-          'building': 'Building A',
-          'createdAt': DateTime.now().toIso8601String(),
-        },
-        {
-          'lecturerName': lecturer['fullName'],
-          'level': 'Year 3',
-          'semester': 'Semester 1',
-          'courseId': 'ICT3152',
-          'courseName': 'Database Systems',
-          'dayOfWeek': 2,
-          'startTime': '10:00',
-          'endTime': '12:00',
-          'roomNumber': 'B101',
-          'building': 'Building B',
-          'createdAt': DateTime.now().toIso8601String(),
-        },
-      ];
-      
-      for (var entry in sampleEntries) {
-        await db.insertTimetableEntry(entry);
-      }
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Sample timetable data added!')),
-      );
-      setState(() {});
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
+    switch (index) {
+      case 0:
+        // Already on dashboard
+        break;
+      case 1:
+        _navigateToTimetableView();
+        break;
+      case 2:
+        _navigateToAllAnnouncements();
+        break;
+      case 3:
+        _navigateToProfile();
+        break;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Timetable Management', style: TextStyle(color: Colors.white)),
+        title: const Text('Dashboard', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.transparent,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.add, color: Colors.white),
@@ -152,12 +161,7 @@ class _NonAcademicDashboardState extends State<NonAcademicDashboard> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addSampleData,
-        child: const Icon(Icons.add),
-        backgroundColor: AppColors.electricPurple,
-        tooltip: 'Add Sample Data',
-      ),
+      
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -170,11 +174,116 @@ class _NonAcademicDashboardState extends State<NonAcademicDashboard> {
               const SizedBox(height: 24),
               _buildQuickActions(),
               const SizedBox(height: 24),
+              _buildAnnouncementsSection(),
+              const SizedBox(height: 24),
               _buildAllTimetable(),
+              const SizedBox(height: 80), // Space for bottom nav
             ],
           ),
         ),
       ),
+      bottomNavigationBar: _buildCustomBottomNavBar(),
+    );
+  }
+
+  Widget _buildCustomBottomNavBar() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 20,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: AppColors.glassSurface,
+          selectedItemColor: AppColors.electricPurple,
+          unselectedItemColor: AppColors.textSecondary,
+          currentIndex: _currentIndex,
+          onTap: _onNavBarTap,
+          elevation: 0,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined),
+              activeIcon: Icon(Icons.home),
+              label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.schedule_outlined),
+              activeIcon: Icon(Icons.schedule),
+              label: 'Timetable',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.announcement_outlined),
+              activeIcon: Icon(Icons.announcement),
+              label: 'News',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline),
+              activeIcon: Icon(Icons.person),
+              label: 'Profile',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnnouncementsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'ANNOUNCEMENTS',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline, color: AppColors.electricPurple),
+                  onPressed: _showCreateAnnouncementSheet,
+                  tooltip: 'Post Announcement',
+                ),
+                TextButton(
+                  onPressed: _navigateToAllAnnouncements,
+                  child: Text(
+                    'View All',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.electricPurple,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        
+        RoleBasedAnnouncements(
+          userRole: 'non_academic_staff',
+          userId: _user.id,
+          userName: _user.fullName,
+          showViewAll: false,
+          limit: 3,
+          showCreateButton: false,
+        ),
+      ],
     );
   }
 
@@ -254,7 +363,7 @@ class _NonAcademicDashboardState extends State<NonAcademicDashboard> {
             const SizedBox(width: 12),
             Expanded(child: _buildActionButton(Icons.schedule, 'View All', AppColors.success, _navigateToTimetableView)),
             const SizedBox(width: 12),
-            Expanded(child: _buildActionButton(Icons.people, 'Staff', AppColors.vibrantYellow, () {})),
+            Expanded(child: _buildActionButton(Icons.announcement, 'Post', AppColors.vibrantYellow, _showCreateAnnouncementSheet)),
           ],
         ),
       ],
@@ -306,10 +415,7 @@ class _NonAcademicDashboardState extends State<NonAcademicDashboard> {
                       const SizedBox(height: 12),
                       const Text('No timetable entries', style: TextStyle(color: Colors.white70)),
                       const SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: _addSampleData,
-                        child: const Text('Add Sample Data'),
-                      ),
+                      
                     ],
                   ),
                 ),
