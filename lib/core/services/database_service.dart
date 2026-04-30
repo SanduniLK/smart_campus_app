@@ -1,3 +1,4 @@
+
 import 'package:smart_campus_app/data/models/time_table_model/course_model.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
@@ -276,99 +277,8 @@ class DatabaseService {
   return result;
 }
 
-  // ==================== EVENT OPERATIONS ====================
 
-  Future<int> insertEvent(Map<String, dynamic> eventData) async {
-    final db = await database;
-    return await db.insert('events', eventData);
-  }
 
-  Future<List<Map<String, dynamic>>> getAllEvents() async {
-    final db = await database;
-    return await db.query('events', orderBy: 'eventDate DESC');
-  }
-
-  Future<List<Map<String, dynamic>>> getUpcomingEvents() async {
-    final db = await database;
-    final today = DateTime.now().toIso8601String().split('T')[0];
-    return await db.query(
-      'events',
-      where: 'eventDate >= ? AND isActive = 1',
-      whereArgs: [today],
-      orderBy: 'eventDate ASC',
-    );
-  }
-
-  Future<Map<String, dynamic>?> getEventById(int id) async {
-    final db = await database;
-    final result = await db.query('events', where: 'id = ?', whereArgs: [id]);
-    return result.isNotEmpty ? result.first : null;
-  }
-
-  Future<int> registerForEvent(int eventId, String userId) async {
-    final db = await database;
-    
-    final existing = await db.query(
-      'event_registrations',
-      where: 'eventId = ? AND userId = ?',
-      whereArgs: [eventId, userId],
-    );
-    
-    if (existing.isNotEmpty) return -1;
-    
-    final result = await db.insert('event_registrations', {
-      'eventId': eventId,
-      'userId': userId,
-      'registrationDate': DateTime.now().toIso8601String(),
-      'qrScanned': 0,
-      'attendanceStatus': 'Pending',
-    });
-    
-    await db.update(
-      'events',
-      {'registeredCount': db.rawUpdate('registeredCount + 1')},
-      where: 'id = ?',
-      whereArgs: [eventId],
-    );
-    
-    return result;
-  }
-
-  Future<bool> isUserRegisteredForEvent(int eventId, String userId) async {
-    final db = await database;
-    final result = await db.query(
-      'event_registrations',
-      where: 'eventId = ? AND userId = ?',
-      whereArgs: [eventId, userId],
-    );
-    return result.isNotEmpty;
-  }
-
-  Future<List<Map<String, dynamic>>> getUserEventRegistrations(String userId) async {
-    final db = await database;
-    return await db.rawQuery('''
-      SELECT e.*, er.registrationDate, er.qrScanned, er.attendanceStatus
-      FROM event_registrations er
-      INNER JOIN events e ON er.eventId = e.id
-      WHERE er.userId = ?
-      ORDER BY e.eventDate DESC
-    ''', [userId]);
-  }
-
-  Future<bool> scanQRCode(int eventId, String userId) async {
-    final db = await database;
-    final result = await db.update(
-      'event_registrations',
-      {
-        'qrScanned': 1,
-        'scannedAt': DateTime.now().toIso8601String(),
-        'attendanceStatus': 'Present',
-      },
-      where: 'eventId = ? AND userId = ?',
-      whereArgs: [eventId, userId],
-    );
-    return result > 0;
-  }
 
   // ==================== TIMETABLE OPERATIONS ====================
 
@@ -514,4 +424,155 @@ Future<void> updateCourse(int id, Map<String, dynamic> updates) async {
   final db = await database;
   await db.update('courses', updates, where: 'id = ?', whereArgs: [id]);
 }
+// Add to database_service.dart
+
+
+
+
+// ==================== EVENT OPERATIONS (KEEP ONLY THESE) ====================
+
+Future<int> insertEvent(Map<String, dynamic> eventData) async {
+  final db = await database;
+  return await db.insert('events', eventData);
+}
+
+Future<List<Map<String, dynamic>>> getAllEvents() async {
+  final db = await database;
+  return await db.query('events', orderBy: 'eventDate DESC');
+}
+
+Future<List<Map<String, dynamic>>> getUpcomingEvents() async {
+  final db = await database;
+  final today = DateTime.now().toIso8601String().split('T')[0];
+  return await db.query(
+    'events',
+    where: 'eventDate >= ? AND isActive = 1',
+    whereArgs: [today],
+    orderBy: 'eventDate ASC',
+  );
+}
+
+Future<Map<String, dynamic>?> getEventById(int id) async {
+  final db = await database;
+  final result = await db.query('events', where: 'id = ?', whereArgs: [id]);
+  return result.isNotEmpty ? result.first : null;
+}
+
+Future<List<Map<String, dynamic>>> getEventsByStatus(String status) async {
+  final db = await database;
+  return await db.query(
+    'events',
+    where: 'status = ?',
+    whereArgs: [status],
+    orderBy: 'createdAt DESC',
+  );
+}
+
+Future<void> updateEventStatus(int id, String status) async {
+  final db = await database;
+  await db.update(
+    'events',
+    {'status': status, 'approvedAt': DateTime.now().toIso8601String()},
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+}
+
+Future<void> updateEventFirestoreId(int localId, String firestoreId) async {
+  final db = await database;
+  await db.update(
+    'events',
+    {'firestoreId': firestoreId},
+    where: 'id = ?',
+    whereArgs: [localId],
+  );
+}
+
+Future<void> updateEventSyncStatus(int localId, bool isSynced) async {
+  final db = await database;
+  await db.update(
+    'events',
+    {'isSynced': isSynced ? 1 : 0},
+    where: 'id = ?',
+    whereArgs: [localId],
+  );
+}
+
+Future<void> insertOrUpdateEvent(Map<String, dynamic> eventData) async {
+  final db = await database;
+  await db.insert(
+    'events',
+    eventData,
+    conflictAlgorithm: ConflictAlgorithm.replace,
+  );
+}
+
+Future<String> registerForEvent(int eventId, String userId) async {
+  final db = await database;
+  
+  final existing = await db.query(
+    'event_registrations',
+    where: 'eventId = ? AND userId = ?',
+    whereArgs: [eventId, userId],
+  );
+  
+  if (existing.isNotEmpty) return 'already_registered';
+  
+  final qrData = '$eventId|$userId|${DateTime.now().millisecondsSinceEpoch}';
+  
+  await db.insert('event_registrations', {
+    'eventId': eventId,
+    'userId': userId,
+    'registrationDate': DateTime.now().toIso8601String(),
+    'qrScanned': 0,
+    'attendanceStatus': 'Pending',
+    'qrCodeData': qrData,
+  });
+  
+  await db.update(
+    'events',
+    {'registeredCount': db.rawUpdate('registeredCount + 1')},
+    where: 'id = ?',
+    whereArgs: [eventId],
+  );
+  
+  return qrData;
+}
+
+Future<bool> isUserRegisteredForEvent(int eventId, String userId) async {
+  final db = await database;
+  final result = await db.query(
+    'event_registrations',
+    where: 'eventId = ? AND userId = ?',
+    whereArgs: [eventId, userId],
+  );
+  return result.isNotEmpty;
+}
+
+Future<List<Map<String, dynamic>>> getUserEventRegistrations(String userId) async {
+  final db = await database;
+  return await db.rawQuery('''
+    SELECT e.*, er.registrationDate, er.qrScanned, er.attendanceStatus
+    FROM event_registrations er
+    INNER JOIN events e ON er.eventId = e.id
+    WHERE er.userId = ?
+    ORDER BY e.eventDate DESC
+  ''', [userId]);
+}
+
+Future<bool> scanQRCode(int eventId, String userId) async {
+  final db = await database;
+  final result = await db.update(
+    'event_registrations',
+    {
+      'qrScanned': 1,
+      'scannedAt': DateTime.now().toIso8601String(),
+      'attendanceStatus': 'Present',
+    },
+    where: 'eventId = ? AND userId = ?',
+    whereArgs: [eventId, userId],
+  );
+  return result > 0;
+}
+
 }

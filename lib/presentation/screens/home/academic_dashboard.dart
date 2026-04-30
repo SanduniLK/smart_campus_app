@@ -8,6 +8,9 @@ import 'package:smart_campus_app/business_logic/auth_bloc/auth_state.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
 import 'package:smart_campus_app/core/services/database_service.dart';
 import 'package:smart_campus_app/data/models/user_model.dart';
+import 'package:smart_campus_app/presentation/screens/events/create_event_screen.dart';
+import 'package:smart_campus_app/presentation/screens/events/events_list_screen.dart';
+import 'package:smart_campus_app/presentation/screens/events/pending_events_screen.dart';
 import 'package:smart_campus_app/presentation/widgets/glass_card.dart';
 import 'package:smart_campus_app/presentation/screens/time_table/view_timetable_screen.dart';
 import 'package:smart_campus_app/presentation/screens/time_table/edit_timetable_screen.dart';
@@ -77,6 +80,27 @@ class _AcademicDashboardState extends State<AcademicDashboard> {
       MaterialPageRoute(
         builder: (_) => EditTimetableScreen(entry: entry),
       ),
+    );
+  }
+
+  void _navigateToCreateEvent() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CreateEventScreen()),
+    );
+  }
+
+  void _navigateToEventsList() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const EventsListScreen()),
+    );
+  }
+
+  void _navigateToPendingEvents() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PendingEventsScreen()),
     );
   }
 
@@ -221,6 +245,8 @@ class _AcademicDashboardState extends State<AcademicDashboard> {
           style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
         ),
         const SizedBox(height: 12),
+        
+        // First Row
         Row(
           children: [
             Expanded(
@@ -233,15 +259,59 @@ class _AcademicDashboardState extends State<AcademicDashboard> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _buildActionButton(Icons.edit_note, 'My Profile', AppColors.success, () {
-                setState(() {
-                  _currentIndex = 2;
-                });
-              }),
+              child: _buildActionButton(
+                Icons.event_rounded,
+                'Create Event',
+                AppColors.softMagenta,
+                _navigateToCreateEvent,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _buildActionButton(Icons.event_rounded, 'Events', AppColors.softMagenta, () {}),
+              child: _buildActionButton(
+                Icons.pending_actions,
+                'Pending Events',
+                Colors.orange,
+                _navigateToPendingEvents,
+              ),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 12),
+        
+        // Second Row
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionButton(
+                Icons.list_alt,
+                'All Events',
+                Colors.green,
+                _navigateToEventsList,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildActionButton(
+                Icons.edit_note,
+                'My Profile',
+                AppColors.success,
+                () {
+                  setState(() {
+                    _currentIndex = 2;
+                  });
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildActionButton(
+                Icons.add,
+                'Quick Event',
+                AppColors.vibrantYellow,
+                _navigateToCreateEvent,
+              ),
             ),
           ],
         ),
@@ -260,7 +330,10 @@ class _AcademicDashboardState extends State<AcademicDashboard> {
             const SizedBox(height: 4),
             Text(
               label,
-              style: GoogleFonts.poppins(fontSize: 11, color: Colors.white70),
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                color: Colors.white70,
+              ),
               textAlign: TextAlign.center,
             ),
           ],

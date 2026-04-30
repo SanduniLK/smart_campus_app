@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:smart_campus_app/data/models/event/event_model.dart';
 import 'database_service.dart';
 import '../../data/models/time_table_model/course_model.dart';
 import '../../data/models/time_table_model/timetable_entry_model.dart';
@@ -513,7 +514,163 @@ class FirebaseService {
         return 'Failed to send password reset email. Please try again.';
     }
   }
+Future<String> saveEventToFirestore(Event event) async {
+  try {
+    final docRef = _firestore.collection('events').doc();
+    await docRef.set({
+      ...event.toFirestore(),
+      'firestoreId': docRef.id,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    print('✅ Event saved to Firestore: ${docRef.id}');
+    return docRef.id;
+  } catch (e) {
+    print('❌ Error saving event to Firestore: $e');
+    throw e;
+  }
+}
 
+Future<List<Event>> getAllEventsFromFirestore() async {
+  try {
+    final snapshot = await _firestore.collection('events').get();
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      return Event(
+        firestoreId: doc.id,
+        title: data['title'],
+        description: data['description'],
+        eventDate: DateTime.parse(data['eventDate']),
+        startTime: data['startTime'],
+        endTime: data['endTime'],
+        location: data['location'],
+        capacity: data['capacity'],
+        registeredCount: data['registeredCount'] ?? 0,
+        status: data['status'] ?? 'pending',
+        createdBy: data['createdBy'],
+        createdByRole: data['createdByRole'],
+        createdByEmail: data['createdByEmail'],
+        createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+      );
+    }).toList();
+  } catch (e) {
+    print('❌ Error getting events from Firestore: $e');
+    return [];
+  }
+}
+
+Future<List<Event>> getPendingEventsFromFirestore() async {
+  try {
+    final snapshot = await _firestore
+        .collection('events')
+        .where('status', isEqualTo: 'pending')
+        .get();
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      return Event(
+        firestoreId: doc.id,
+        title: data['title'],
+        description: data['description'],
+        eventDate: DateTime.parse(data['eventDate']),
+        startTime: data['startTime'],
+        endTime: data['endTime'],
+        location: data['location'],
+        capacity: data['capacity'],
+        registeredCount: data['registeredCount'] ?? 0,
+        status: data['status'],
+        createdBy: data['createdBy'],
+        createdByRole: data['createdByRole'],
+        createdByEmail: data['createdByEmail'],
+        createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+      );
+    }).toList();
+  } catch (e) {
+    print('❌ Error getting pending events from Firestore: $e');
+    return [];
+  }
+}
+
+Future<void> updateEventStatus(String firestoreId, String status) async {
+  try {
+    await _firestore.collection('events').doc(firestoreId).update({
+      'status': status,
+      'approvedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    print('✅ Event status updated in Firestore: $firestoreId');
+  } catch (e) {
+    print('❌ Error updating event status: $e');
+    throw e;
+  }
+}
+
+Future<void> saveRegistrationToFirestore(int eventId, String userId, String qrData) async {
+  try {
+    final docRef = _firestore.collection('event_registrations').doc();
+    await docRef.set({
+      'eventId': eventId,
+      'userId': userId,
+      'qrCodeData': qrData,
+      'registrationDate': FieldValue.serverTimestamp(),
+      'qrScanned': false,
+      'attendanceStatus': 'Pending',
+    });
+    print('✅ Registration saved to Firestore: ${docRef.id}');
+  } catch (e) {
+    print('❌ Error saving registration to Firestore: $e');
+    throw e;
+  }
+}
+
+Future<List<Map<String, dynamic>>> getUserRegistrationsFromFirestore(String userId) async {
+  try {
+    final snapshot = await _firestore
+        .collection('event_registrations')
+        .where('userId', isEqualTo: userId)
+        .get();
+    
+    final List<Map<String, dynamic>> registrations = [];
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      final eventDoc = await _firestore.collection('events').doc(data['eventId'].toString()).get();
+      registrations.add({
+        'id': data['eventId'],
+        'title': eventDoc.data()?['title'],
+        'eventDate': eventDoc.data()?['eventDate'],
+        'location': eventDoc.data()?['location'],
+        'qrCodeData': data['qrCodeData'],
+        'qrScanned': data['qrScanned'],
+        'attendanceStatus': data['attendanceStatus'],
+      });
+    }
+    return registrations;
+  } catch (e) {
+    print('❌ Error getting registrations from Firestore: $e');
+    return [];
+  }
+}
+
+Future<void> updateRegistrationScan(int eventId, String userId) async {
+  try {
+    final snapshot = await _firestore
+        .collection('event_registrations')
+        .where('eventId', isEqualTo: eventId)
+        .where('userId', isEqualTo: userId)
+        .limit(1)
+        .get();
+    
+    if (snapshot.docs.isNotEmpty) {
+      await snapshot.docs.first.reference.update({
+        'qrScanned': true,
+        'scannedAt': FieldValue.serverTimestamp(),
+        'attendanceStatus': 'Present',
+      });
+      print('✅ Registration scan updated in Firestore');
+    }
+  } catch (e) {
+    print('❌ Error updating registration scan: $e');
+    throw e;
+  }
+}
   // ==================== SIGN OUT ====================
   Future<void> signOut() async {
     final user = _auth.currentUser;

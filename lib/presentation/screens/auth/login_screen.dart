@@ -132,6 +132,69 @@ class _LoginScreenState extends State<LoginScreen> {
                       _buildLoginCard(),
                       const SizedBox(height: 24),
                       _buildSignUpLink(),
+                      ElevatedButton(
+  onPressed: () async {
+    final db = DatabaseService();
+    final database = await db.database;
+    
+    // Create events table
+    try {
+      await database.execute('''
+        CREATE TABLE IF NOT EXISTS events(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          firestoreId TEXT,
+          title TEXT NOT NULL,
+          description TEXT,
+          eventDate TEXT NOT NULL,
+          startTime TEXT,
+          endTime TEXT,
+          location TEXT NOT NULL,
+          capacity INTEGER NOT NULL,
+          registeredCount INTEGER DEFAULT 0,
+          qrCode TEXT,
+          isActive INTEGER DEFAULT 1,
+          status TEXT DEFAULT 'pending',
+          createdBy TEXT NOT NULL,
+          createdByRole TEXT NOT NULL,
+          createdByEmail TEXT,
+          approvedBy TEXT,
+          approvedAt TEXT,
+          createdAt TEXT,
+          updatedAt TEXT,
+          isSynced INTEGER DEFAULT 1
+        )
+      ''');
+      print('✅ Events table created');
+    } catch (e) { print('Events table error: $e'); }
+    
+    // Create event_registrations table
+    try {
+      await database.execute('''
+        CREATE TABLE IF NOT EXISTS event_registrations(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          firestoreId TEXT,
+          eventId INTEGER NOT NULL,
+          userId TEXT NOT NULL,
+          registrationDate TEXT NOT NULL,
+          qrScanned INTEGER DEFAULT 0,
+          scannedAt TEXT,
+          attendanceStatus TEXT DEFAULT 'Pending',
+          qrCodeData TEXT,
+          isSynced INTEGER DEFAULT 1,
+          FOREIGN KEY (eventId) REFERENCES events(id) ON DELETE CASCADE,
+          FOREIGN KEY (userId) REFERENCES users(uid) ON DELETE CASCADE,
+          UNIQUE(eventId, userId)
+        )
+      ''');
+      print('✅ Event registrations table created');
+    } catch (e) { print('Event registrations error: $e'); }
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Database fixed! Restart app.')),
+    );
+  },
+  child: const Text('Create Events Tables'),
+)
                     ],
                   ),
                 ),

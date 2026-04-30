@@ -5,10 +5,16 @@ import 'package:intl/intl.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
 import 'package:smart_campus_app/business_logic/auth_bloc/auth_bloc.dart';
 import 'package:smart_campus_app/business_logic/auth_bloc/auth_state.dart';
+import 'package:smart_campus_app/presentation/screens/events/create_event_screen.dart';
+import 'package:smart_campus_app/presentation/screens/events/events_list_screen.dart';
+import 'package:smart_campus_app/presentation/screens/events/pending_events_screen.dart';
 import 'package:smart_campus_app/presentation/screens/time_table/create_timetable_screen.dart';
+import 'package:smart_campus_app/presentation/widgets/events/pending_tasks_widget.dart';
 import 'package:smart_campus_app/presentation/widgets/glass_card.dart';
+
 import 'package:smart_campus_app/data/models/user_model.dart';
 import 'package:smart_campus_app/presentation/screens/time_table/staff_timetable_manager.dart';
+import 'package:smart_campus_app/presentation/widgets/staff_dashborard/recent_announcements_widget.dart';
 
 class StaffDashboardScreen extends StatelessWidget {
   const StaffDashboardScreen({super.key});
@@ -24,6 +30,27 @@ class StaffDashboardScreen extends StatelessWidget {
     return DateFormat('EEEE, MMMM d, yyyy').format(DateTime.now());
   }
 
+  void _navigateToCreateEvent(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CreateEventScreen()),
+    );
+  }
+
+  void _navigateToEventsList(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const EventsListScreen()),
+    );
+  }
+
+  void _navigateToPendingEvents(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PendingEventsScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AuthBloc>().state;
@@ -33,6 +60,7 @@ class StaffDashboardScreen extends StatelessWidget {
     }
 
     final user = state.user;
+    final isAcademic = user.staffType == 'academic';
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -40,33 +68,19 @@ class StaffDashboardScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Welcome Header
             _buildWelcomeHeader(user),
-            
             const SizedBox(height: 24),
-            
-            // Stats Cards
             _buildStatsRow(),
-            
             const SizedBox(height: 24),
-            
-            // Quick Actions
-            _buildQuickActions(context),
-            
+            _buildQuickActions(context, isAcademic),
             const SizedBox(height: 24),
-            
-            // Today's Schedule
             _buildTodaySchedule(context),
-            
             const SizedBox(height: 24),
-            
-            // Pending Tasks
-            _buildPendingTasks(),
-            
+            const PendingTasksWidget(),
             const SizedBox(height: 24),
-            
-            // Recent Announcements
-            _buildRecentAnnouncements(context),
+            RecentAnnouncementsWidget(
+              onPostNew: () {},
+            ),
           ],
         ),
       ),
@@ -210,7 +224,7 @@ class StaffDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickActions(BuildContext context) {
+  Widget _buildQuickActions(BuildContext context, bool isAcademic) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -223,6 +237,8 @@ class StaffDashboardScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
+        
+        // First Row
         Row(
           children: [
             Expanded(
@@ -239,7 +255,7 @@ class StaffDashboardScreen extends StatelessWidget {
                 Icons.event_rounded,
                 'Create Event',
                 AppColors.softMagenta,
-                () {},
+                () => _navigateToCreateEvent(context),
               ),
             ),
             const SizedBox(width: 12),
@@ -257,7 +273,10 @@ class StaffDashboardScreen extends StatelessWidget {
             ),
           ],
         ),
+        
         const SizedBox(height: 12),
+        
+        // Second Row
         Row(
           children: [
             Expanded(
@@ -266,7 +285,6 @@ class StaffDashboardScreen extends StatelessWidget {
                 'Timetable',
                 AppColors.electricPurple,
                 () {
-                  // ✅ Navigate to Create Timetable Screen
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const CreateTimetableScreen()),
@@ -302,6 +320,41 @@ class StaffDashboardScreen extends StatelessWidget {
             ),
           ],
         ),
+
+        // Third Row - Academic Staff Only (Event Management)
+        if (isAcademic) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildActionButton(
+                  Icons.pending_actions,
+                  'Pending Events',
+                  Colors.orange,
+                  () => _navigateToPendingEvents(context),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildActionButton(
+                  Icons.list_alt,
+                  'All Events',
+                  Colors.green,
+                  () => _navigateToEventsList(context),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildActionButton(
+                  Icons.add,
+                  'Quick Event',
+                  AppColors.electricPurple,
+                  () => _navigateToCreateEvent(context),
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
@@ -524,270 +577,6 @@ class StaffDashboardScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildPendingTasks() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Pending Tasks',
-          style: GoogleFonts.poppins(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 12),
-        _buildTaskCard(
-          'Grade Assignment Submissions',
-          'CS301 - Database Systems',
-          'Due in 2 days',
-          '5 pending',
-          Icons.grading_rounded,
-        ),
-        const SizedBox(height: 12),
-        _buildTaskCard(
-          'Approve Leave Requests',
-          'Faculty Leave Applications',
-          'Due today',
-          '3 requests',
-          Icons.event_available_rounded,
-          isUrgent: true,
-        ),
-        const SizedBox(height: 12),
-        _buildTaskCard(
-          'Prepare Lecture Notes',
-          'CS302 - Mobile Development',
-          'Due tomorrow',
-          'In progress',
-          Icons.note_alt_rounded,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTaskCard(
-    String title,
-    String subtitle,
-    String dueDate,
-    String count,
-    IconData icon, {
-    bool isUrgent = false,
-  }) {
-    return GlassCard(
-      padding: const EdgeInsets.all(12),
-      borderColor: isUrgent ? AppColors.vibrantYellow : null,
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: (isUrgent ? AppColors.vibrantYellow : AppColors.electricPurple)
-                  .withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              icon,
-              color: isUrgent ? AppColors.vibrantYellow : AppColors.electricPurple,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: (isUrgent ? AppColors.vibrantYellow : AppColors.electricPurple)
-                            .withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        count,
-                        style: GoogleFonts.poppins(
-                          fontSize: 8,
-                          color: isUrgent ? AppColors.vibrantYellow : AppColors.electricPurple,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.poppins(
-                    fontSize: 11,
-                    color: Colors.white70,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      size: 10,
-                      color: isUrgent ? AppColors.vibrantYellow : Colors.white54,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      dueDate,
-                      style: GoogleFonts.poppins(
-                        fontSize: 10,
-                        color: isUrgent ? AppColors.vibrantYellow : Colors.white54,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentAnnouncements(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Recent Announcements',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-            TextButton(
-              onPressed: () {},
-              child: Text(
-                'Post New',
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  color: AppColors.electricPurple,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        _buildAnnouncementCard(
-          '📢',
-          'Faculty Meeting',
-          'Department meeting on Friday at 10:00 AM in Conference Room',
-          '30 mins ago',
-        ),
-        const SizedBox(height: 12),
-        _buildAnnouncementCard(
-          '⚠️',
-          'System Maintenance',
-          'LMS will be down tonight from 10 PM to 12 AM',
-          '2 hours ago',
-          isUrgent: true,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAnnouncementCard(String emoji, String title, String desc, String time, {bool isUrgent = false}) {
-    return GlassCard(
-      padding: const EdgeInsets.all(12),
-      borderColor: isUrgent ? AppColors.vibrantYellow : null,
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: (isUrgent ? AppColors.vibrantYellow : AppColors.electricPurple)
-                  .withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Center(
-              child: Text(emoji, style: const TextStyle(fontSize: 20)),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    if (isUrgent)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.vibrantYellow.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'URGENT',
-                          style: GoogleFonts.poppins(
-                            fontSize: 8,
-                            color: AppColors.vibrantYellow,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                Text(
-                  desc,
-                  style: GoogleFonts.poppins(
-                    fontSize: 11,
-                    color: Colors.white70,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  time,
-                  style: GoogleFonts.poppins(
-                    fontSize: 9,
-                    color: Colors.white54,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Icon(
-            Icons.more_vert_rounded,
-            color: Colors.white54,
-            size: 16,
-          ),
-        ],
       ),
     );
   }

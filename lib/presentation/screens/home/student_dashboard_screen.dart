@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
 import 'package:smart_campus_app/core/services/database_service.dart';
 import 'package:smart_campus_app/core/services/firebase_service.dart';
+import 'package:smart_campus_app/presentation/screens/events/create_event_screen.dart';
+import 'package:smart_campus_app/presentation/screens/events/events_list_screen.dart';
 import 'package:smart_campus_app/presentation/screens/time_table/student_timetable_screen.dart';
 import 'package:smart_campus_app/presentation/widgets/student_dashboard/announcements_list.dart';
 import 'package:smart_campus_app/presentation/widgets/student_dashboard/next_class_card.dart';
 import 'package:smart_campus_app/presentation/widgets/student_dashboard/progress_stats.dart';
-import 'package:smart_campus_app/presentation/widgets/student_dashboard/quick_access_grid.dart';
+
 import 'package:smart_campus_app/presentation/widgets/student_dashboard/welcome_header.dart';
 import 'package:smart_campus_app/presentation/widgets/glass_card.dart';
-
 
 class StudentDashboardScreen extends StatefulWidget {
   const StudentDashboardScreen({super.key});
@@ -46,28 +47,23 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           _studentSemester = studentDetails['currentSemester'] ?? 'Semester 1';
         }
         
-        // Get all timetable
         final allTimetable = await _db.getAllTimetable();
         
-        // Filter by student's level and semester
         final filteredTimetable = allTimetable.where((entry) {
           return entry['level'] == _studentLevel && 
                  entry['semester'] == _studentSemester;
         }).toList();
         
-        // Get today's classes
         final today = DateTime.now().weekday;
         final currentDay = today == 7 ? 6 : today;
         _todayClasses = filteredTimetable
             .where((entry) => entry['dayOfWeek'] == currentDay)
             .toList();
         
-        // Get upcoming classes (future days)
         _upcomingClasses = filteredTimetable
             .where((entry) => entry['dayOfWeek'] > currentDay)
             .toList();
         
-        // Sort by day
         _upcomingClasses.sort((a, b) => a['dayOfWeek'].compareTo(b['dayOfWeek']));
       }
     } catch (e) {
@@ -104,6 +100,20 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
+  void _navigateToEvents() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const EventsListScreen()),
+    );
+  }
+
+  void _navigateToCreateEvent() {
+    Navigator.push(
+      context, 
+      MaterialPageRoute(builder: (_) => const CreateEventScreen())
+    );
+  }
+
   Widget _buildClassCard(Map<String, dynamic> entry, {bool isUpcoming = false}) {
     final now = DateTime.now();
     final currentTime = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
@@ -117,7 +127,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            // Day/Time Column
             Container(
               width: isUpcoming ? 70 : 60,
               child: isUpcoming
@@ -250,7 +259,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       return const SizedBox.shrink();
     }
     
-    // Show only next 3 upcoming classes
     final displayClasses = _upcomingClasses.take(3).toList();
     final hasMore = _upcomingClasses.length > 3;
     
@@ -313,7 +321,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               ),
               const SizedBox(height: 24),
               
-              // Next Class Card
               const NextClassCard(
                 className: 'ICT4153 – Mobile App Dev',
                 startTime: '10:00 AM',
@@ -328,11 +335,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               ),
               const SizedBox(height: 20),
               
-              // Progress Stats
               const ProgressStats(),
               const SizedBox(height: 24),
               
-              // Today's Schedule Section
               if (_isLoading)
                 const Center(child: CircularProgressIndicator())
               else
@@ -364,14 +369,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     ),
                     const SizedBox(height: 12),
                     _buildTodaySchedule(),
-                    
-                    // Upcoming Section
                     _buildUpcomingSchedule(),
                   ],
                 ),
               const SizedBox(height: 24),
               
-              // QUICK ACCESS Section
               const Text(
                 'QUICK ACCESS',
                 style: TextStyle(
@@ -383,33 +385,102 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               ),
               const SizedBox(height: 12),
               
-              QuickAccessGrid(
-                onTimetableTap: _navigateToTimetable,
-                onCampusMapTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Campus Map Coming Soon')),
-                  );
-                },
-                onQRPassTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('QR Pass Coming Soon')),
-                  );
-                },
-                onEventsTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Events Coming Soon')),
-                  );
-                },
+              // ✅ Updated Quick Access Grid with Create Event button
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildQuickActionCard(
+                      icon: Icons.schedule,
+                      title: 'Timetable',
+                      subtitle: 'View classes',
+                      color: AppColors.electricPurple,
+                      onTap: _navigateToTimetable,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildQuickActionCard(
+                      icon: Icons.event,
+                      title: 'Events',
+                      subtitle: 'Browse events',
+                      color: AppColors.success,
+                      onTap: _navigateToEvents,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildQuickActionCard(
+                      icon: Icons.add_circle,
+                      title: 'Create Event',
+                      subtitle: 'Host new event',
+                      color: AppColors.vibrantYellow,
+                      onTap: _navigateToCreateEvent,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildQuickActionCard(
+                      icon: Icons.map,
+                      title: 'Campus Map',
+                      subtitle: 'Find locations',
+                      color: AppColors.softMagenta,
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Campus Map Coming Soon')),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
               
-              // Announcements List
               AnnouncementsList(
                 onViewAll: () {},
               ),
               const SizedBox(height: 20),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: GlassCard(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 10,
+                color: Colors.white54,
+              ),
+            ),
+          ],
         ),
       ),
     );

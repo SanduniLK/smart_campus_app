@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:smart_campus_app/business_logic/event/event_bloc.dart';
 import 'package:smart_campus_app/core/theme/app_theme.dart';
 import 'package:smart_campus_app/core/services/database_service.dart';
 import 'package:smart_campus_app/core/services/firebase_service.dart';
 import 'package:smart_campus_app/data/repositories/auth_repository.dart';
+import 'package:smart_campus_app/data/repositories/event/event_repository.dart';
 import 'package:smart_campus_app/data/repositories/time_table/timetable_repository.dart';
 
 import 'package:smart_campus_app/business_logic/auth_bloc/auth_bloc.dart';
@@ -68,6 +70,11 @@ class SmartCampusApp extends StatelessWidget {
               repository: context.read<TimetableRepository>(),
             ),
           ),
+          BlocProvider<EventBloc>(
+  create: (context) => EventBloc(
+    repository: EventRepository(),
+  ),
+),
         ],
         child: MaterialApp(
           title: 'Smart Campus',
