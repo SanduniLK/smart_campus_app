@@ -1,5 +1,4 @@
 // lib/data/models/announcement/announcement_model.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class Announcement {
@@ -14,66 +13,8 @@ class Announcement {
   final String createdByName;
   final DateTime createdAt;
   final DateTime? updatedAt;
-  final String? imageUrl;
   final List<String> readBy;
   final Map<String, String>? reactions;
-
-  // ✅ Add these getters
-  bool get isUrgent => priority == 'urgent';
-  bool get isHighPriority => priority == 'high';
-  
-  // Priority color getter
-  Color get priorityColor {
-    switch (priority) {
-      case 'urgent':
-        return Colors.red;
-      case 'high':
-        return Colors.orange;
-      case 'normal':
-        return Colors.blue;
-      default:
-        return Colors.grey;
-    }
-  }
-  
-  // Type icon getter
-  IconData get typeIcon {
-    switch (type) {
-      case 'event':
-        return Icons.event;
-      case 'deadline':
-        return Icons.alarm;
-      case 'academic':
-        return Icons.school;
-      case 'general':
-        return Icons.announcement;
-      default:
-        return Icons.notifications;
-    }
-  }
-  
-  // Audience label getter
-  String get audienceLabel {
-    switch (targetAudience) {
-      case 'students':
-        return '📚 Students Only';
-      case 'academic_staff':
-        return '👨‍🏫 Academic Staff Only';
-      case 'non_academic_staff':
-        return '👔 Non-Academic Staff Only';
-      default:
-        return '👥 Everyone';
-    }
-  }
-  
-  // Check if announcement is visible to a user role
-  bool isVisibleTo(String userRole) {
-    if (targetAudience == 'all') return true;
-    if (targetAudience == 'students' && userRole == 'student') return true;
-    if (targetAudience == 'academic_staff' && userRole == 'academic_staff') return true;
-    if (targetAudience == 'non_academic_staff' && userRole == 'non_academic_staff') return true;
-    return false;
-  }
 
   Announcement({
     required this.id,
@@ -87,36 +28,53 @@ class Announcement {
     required this.createdByName,
     required this.createdAt,
     this.updatedAt,
-    this.imageUrl,
     this.readBy = const [],
     this.reactions,
   });
 
-  factory Announcement.fromFirestore(Map<String, dynamic> data, String docId) {
-    return Announcement(
-      id: docId,
-      title: data['title'] ?? '',
-      content: data['content'] ?? '',
-      type: data['type'] ?? 'general',
-      priority: data['priority'] ?? 'normal',
-      targetAudience: data['targetAudience'] ?? 'all',
-      createdBy: data['createdBy'] ?? '',
-      createdByRole: data['createdByRole'] ?? '',
-      createdByName: data['createdByName'] ?? '',
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: data['updatedAt'] != null 
-          ? (data['updatedAt'] as Timestamp).toDate() 
-          : null,
-      imageUrl: data['imageUrl'],
-      readBy: List<String>.from(data['readBy'] ?? []),
-      reactions: data['reactions'] != null 
-          ? Map<String, String>.from(data['reactions']) 
-          : null,
-    );
+  // ✅ Getter for priority color
+  Color get priorityColor {
+    switch (priority) {
+      case 'urgent': return Colors.red;
+      case 'high': return Colors.orange;
+      case 'normal': return Colors.blue;
+      default: return Colors.grey;
+    }
   }
-  
-  Map<String, dynamic> toFirestore() {
+
+  // ✅ Getter for type icon
+  IconData get typeIcon {
+    switch (type) {
+      case 'academic': return Icons.school;
+      case 'event': return Icons.event;
+      case 'deadline': return Icons.alarm;
+      default: return Icons.announcement;
+    }
+  }
+
+  // ✅ Getter for audience label
+  String get audienceLabel {
+    switch (targetAudience) {
+      case 'students': return '📚 Students Only';
+      case 'academic_staff': return '👨‍🏫 Academic Staff Only';
+      case 'non_academic_staff': return '👔 Non-Academic Staff Only';
+      default: return '👥 Everyone';
+    }
+  }
+
+  // ✅ Check if announcement is visible to a user role
+  bool isVisibleTo(String userRole) {
+    if (targetAudience == 'all') return true;
+    if (targetAudience == 'students' && userRole == 'student') return true;
+    if (targetAudience == 'academic_staff' && userRole == 'academic_staff') return true;
+    if (targetAudience == 'non_academic_staff' && userRole == 'non_academic_staff') return true;
+    return false;
+  }
+
+  // ✅ JSON Serialization
+  Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'title': title,
       'content': content,
       'type': type,
@@ -125,13 +83,39 @@ class Announcement {
       'createdBy': createdBy,
       'createdByRole': createdByRole,
       'createdByName': createdByName,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-      'imageUrl': imageUrl,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
       'readBy': readBy,
+      'reactions': reactions,
     };
   }
-  
+
+  // ✅ Factory method from JSON
+  factory Announcement.fromJson(Map<String, dynamic> json) {
+    return Announcement(
+      id: json['id'] ?? '',
+      title: json['title'] ?? '',
+      content: json['content'] ?? '',
+      type: json['type'] ?? 'general',
+      priority: json['priority'] ?? 'normal',
+      targetAudience: json['targetAudience'] ?? 'all',
+      createdBy: json['createdBy'] ?? '',
+      createdByRole: json['createdByRole'] ?? '',
+      createdByName: json['createdByName'] ?? '',
+      createdAt: json['createdAt'] != null 
+          ? DateTime.parse(json['createdAt']) 
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null 
+          ? DateTime.parse(json['updatedAt']) 
+          : null,
+      readBy: List<String>.from(json['readBy'] ?? []),
+      reactions: json['reactions'] != null 
+          ? Map<String, String>.from(json['reactions']) 
+          : null,
+    );
+  }
+
+  // ✅ Copy with method
   Announcement copyWith({
     String? id,
     String? title,
@@ -144,7 +128,6 @@ class Announcement {
     String? createdByName,
     DateTime? createdAt,
     DateTime? updatedAt,
-    String? imageUrl,
     List<String>? readBy,
     Map<String, String>? reactions,
   }) {
@@ -160,7 +143,6 @@ class Announcement {
       createdByName: createdByName ?? this.createdByName,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      imageUrl: imageUrl ?? this.imageUrl,
       readBy: readBy ?? this.readBy,
       reactions: reactions ?? this.reactions,
     );

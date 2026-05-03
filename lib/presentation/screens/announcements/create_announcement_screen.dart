@@ -1,9 +1,9 @@
 // lib/presentation/screens/announcements/create_announcement_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:smart_campus_app/core/constants/app_colors.dart';
-import 'package:smart_campus_app/presentation/widgets/glass_card.dart';
+
 
 class CreateAnnouncementScreen extends StatefulWidget {
   final String userRole; // 'academic_staff' or 'non_academic_staff'

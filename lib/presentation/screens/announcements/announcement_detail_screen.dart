@@ -27,8 +27,11 @@ class AnnouncementDetailScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Type and priority badges
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
+                // Priority Badge
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
@@ -47,7 +50,8 @@ class AnnouncementDetailScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                
+                // Type Badge
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
@@ -66,7 +70,8 @@ class AnnouncementDetailScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                
+                // Audience Badge
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
@@ -83,11 +88,24 @@ class AnnouncementDetailScreen extends StatelessWidget {
             
             const SizedBox(height: 20),
             
+            // Title
+            Text(
+              announcement.title,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            
+            const SizedBox(height: 12),
+            
             // Metadata
             Row(
               children: [
                 Icon(
-                  announcement.createdByRole == 'academic_staff' ? Icons.school : Icons.business,
+                  announcement.createdByRole == 'academic_staff' ? Icons.school : 
+                  announcement.createdByRole == 'non_academic_staff' ? Icons.business : Icons.person,
                   size: 14,
                   color: Colors.white54,
                 ),
@@ -106,12 +124,21 @@ class AnnouncementDetailScreen extends StatelessWidget {
               ],
             ),
             
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
+            
+            // Divider
+            const Divider(color: Colors.white24, height: 1),
+            
+            const SizedBox(height: 24),
             
             // Content
             Text(
               announcement.content,
-              style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.5),
+              style: const TextStyle(
+                color: Colors.white, 
+                fontSize: 16, 
+                height: 1.6,
+              ),
             ),
             
             const SizedBox(height: 30),
@@ -121,35 +148,60 @@ class AnnouncementDetailScreen extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.glassSurface,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white24),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
+                  // Read count
                   Column(
                     children: [
-                      const Icon(Icons.remove_red_eye, color: Colors.white54),
+                      const Icon(Icons.remove_red_eye_outlined, color: Colors.white54, size: 20),
                       const SizedBox(height: 4),
                       Text(
                         '${announcement.readBy.length}',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const Text('Read', style: TextStyle(color: Colors.white54, fontSize: 11)),
                     ],
                   ),
-                  if (announcement.reactions != null)
+                  
+                  // Reaction count (safe check with null)
+                  if (announcement.reactions != null && announcement.reactions!.isNotEmpty)
                     Column(
                       children: [
-                        const Icon(Icons.thumb_up, color: Colors.white54),
+                        const Icon(Icons.thumb_up_outlined, color: Colors.white54, size: 20),
                         const SizedBox(height: 4),
                         Text(
                           '${announcement.reactions!.length}',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         const Text('Reactions', style: TextStyle(color: Colors.white54, fontSize: 11)),
                       ],
                     ),
                 ],
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // Close Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.electricPurple,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Close',
+                  style: TextStyle(fontSize: 16, color: Colors.white),
+                ),
               ),
             ),
           ],

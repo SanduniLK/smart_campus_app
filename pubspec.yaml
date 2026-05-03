@@ -46,6 +46,11 @@ dependencies:
   qr_flutter: ^4.1.0
   mobile_scanner: ^7.2.0
   connectivity_plus: ^7.1.1
+  geolocator: ^14.0.2
+  google_maps_flutter: ^2.17.0
+  firebase_messaging: ^16.2.0
+  flutter_local_notifications: ^21.0.0
+  
 
 dev_dependencies:
   flutter_test:

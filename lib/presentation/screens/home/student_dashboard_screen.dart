@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
 import 'package:smart_campus_app/core/services/database_service.dart';
 import 'package:smart_campus_app/core/services/firebase_service.dart';
-import 'package:smart_campus_app/presentation/screens/announcements/announcements_screen.dart';
+
 import 'package:smart_campus_app/presentation/screens/events/events_list_screen.dart';
-import 'package:smart_campus_app/presentation/screens/events/create_event_screen.dart';
+
 import 'package:smart_campus_app/presentation/screens/events/student_events_screen.dart';
+import 'package:smart_campus_app/presentation/screens/location/campus_map_screen.dart';
 import 'package:smart_campus_app/presentation/screens/time_table/student_timetable_screen.dart';
 import 'package:smart_campus_app/presentation/widgets/announcement/role_based_announcements.dart';
 import 'package:smart_campus_app/presentation/widgets/student_dashboard/next_class_card.dart';
@@ -471,8 +472,27 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   ),
                 ],
               ),
-              
-              const SizedBox(height: 24),
+              Row(
+  children: [
+    Expanded(
+      child: _buildQuickActionCard(
+        icon: Icons.map,
+        title: 'Campus Map',
+        subtitle: 'Find locations',
+        color: Colors.pink,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CampusMapScreen()),
+          );
+        },
+      ),
+    ),
+    const SizedBox(width: 12),
+    Expanded(child: Container()), // Placeholder for future action
+  ],
+),
+              SizedBox(height: 24),
               
               // STUDENT ANNOUNCEMENTS - VIEW ONLY
               const Text(

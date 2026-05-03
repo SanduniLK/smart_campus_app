@@ -22,6 +22,8 @@ class AnnouncementsLoaded extends AnnouncementState {
 
 class AnnouncementCreated extends AnnouncementState {}
 
+class AnnouncementUpdated extends AnnouncementState {}
+
 class AnnouncementDeleted extends AnnouncementState {}
 
 class AnnouncementError extends AnnouncementState {

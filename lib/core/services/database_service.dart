@@ -154,6 +154,22 @@ class DatabaseService {
         isSynced INTEGER DEFAULT 1
       )
     ''');
+
+    await db.execute('''
+  CREATE TABLE campus_buildings(
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    code TEXT NOT NULL,
+    latitude REAL NOT NULL,
+    longitude REAL NOT NULL,
+    description TEXT,
+    type TEXT NOT NULL,
+    facilities TEXT,
+    openingHours TEXT,
+    phone TEXT,
+    imageUrl TEXT
+  )
+''');
     
     print('✅ Database created successfully!');
   }
@@ -734,5 +750,24 @@ Future<List<Map<String, dynamic>>> getUnsyncedEvents() async {
     where: 'isSynced = 0 OR isSynced IS NULL',
   );
 }
+Future<void> insertCampusBuilding(Map<String, dynamic> building) async {
+  final db = await database;
+  await db.insert('campus_buildings', building,
+      conflictAlgorithm: ConflictAlgorithm.replace);
+}
 
+Future<List<Map<String, dynamic>>> getAllCampusBuildings() async {
+  final db = await database;
+  return await db.query('campus_buildings', orderBy: 'name');
+}
+
+Future<Map<String, dynamic>?> getCampusBuildingById(String id) async {
+  final db = await database;
+  final result = await db.query(
+    'campus_buildings',
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+  return result.isNotEmpty ? result.first : null;
+}
 }

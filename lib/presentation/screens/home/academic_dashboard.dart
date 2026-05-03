@@ -7,9 +7,9 @@ import 'package:smart_campus_app/business_logic/auth_bloc/auth_event.dart';
 import 'package:smart_campus_app/business_logic/auth_bloc/auth_state.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
 import 'package:smart_campus_app/core/services/database_service.dart';
-import 'package:smart_campus_app/core/services/firebase_service.dart';
+
 import 'package:smart_campus_app/data/models/user_model.dart';
-import 'package:smart_campus_app/presentation/screens/announcements/announcements_screen.dart';
+
 import 'package:smart_campus_app/presentation/screens/events/create_event_screen.dart';
 import 'package:smart_campus_app/presentation/screens/events/events_list_screen.dart';
 import 'package:smart_campus_app/presentation/screens/events/pending_events_screen.dart';

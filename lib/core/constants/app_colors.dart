@@ -20,6 +20,7 @@ class AppColors {
   // Functional Colors
   static const Color success = vibrantYellow;
   static const Color error = Color(0xFFE53935);
+
   
   // Helper method for opacity - මෙය එකතු කරන්න
   static Color withOpacity(Color color, double opacity) {

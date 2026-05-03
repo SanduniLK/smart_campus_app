@@ -10,7 +10,7 @@ import 'package:smart_campus_app/business_logic/event/event_event.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
 import 'package:smart_campus_app/data/models/event/event_model.dart';
 import 'package:smart_campus_app/presentation/widgets/glass_card.dart';
-import 'my_qr_screen.dart';
+
 
 class EventDetailScreen extends StatelessWidget {
   final Event event;
@@ -23,7 +23,7 @@ class EventDetailScreen extends StatelessWidget {
       return const Scaffold(body: Center(child: Text('Not authenticated')));
     }
     
-    final currentUserId = authState.user.id;
+
     final isRegistered = false; // You can check from state
     
     return Scaffold(
@@ -99,15 +99,7 @@ class EventDetailScreen extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: isRegistered
                       ? () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => MyQRScreen(
-                                eventId: event.id!,
-                                eventName: event.title,
-                              ),
-                            ),
-                          );
+                         
                         }
                       : () {
                           context.read<EventBloc>().add(RegisterForEvent(event.id!));

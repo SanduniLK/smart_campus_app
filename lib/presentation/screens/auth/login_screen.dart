@@ -6,7 +6,7 @@ import 'package:smart_campus_app/core/constants/app_colors.dart';
 import 'package:smart_campus_app/business_logic/auth_bloc/auth_bloc.dart';
 import 'package:smart_campus_app/business_logic/auth_bloc/auth_event.dart';
 import 'package:smart_campus_app/business_logic/auth_bloc/auth_state.dart';
-import 'package:smart_campus_app/core/services/database_service.dart';
+
 import 'package:smart_campus_app/presentation/widgets/splash_screen/animated_glass_background.dart';
 
 
@@ -22,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
-  bool _rememberMe = false;
+  
 
   final FocusNode _emailFocusNode = FocusNode();
   final FocusNode _passwordFocusNode = FocusNode();

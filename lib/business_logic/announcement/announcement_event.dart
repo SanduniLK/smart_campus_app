@@ -11,13 +11,6 @@ abstract class AnnouncementEvent extends Equatable {
 
 class LoadAnnouncements extends AnnouncementEvent {}
 
-class LoadAnnouncementsByType extends AnnouncementEvent {
-  final String type;
-  const LoadAnnouncementsByType(this.type);
-  @override
-  List<Object> get props => [type];
-}
-
 class CreateAnnouncement extends AnnouncementEvent {
   final Announcement announcement;
   const CreateAnnouncement(this.announcement);
@@ -42,15 +35,17 @@ class DeleteAnnouncement extends AnnouncementEvent {
 
 class MarkAnnouncementAsRead extends AnnouncementEvent {
   final String id;
-  const MarkAnnouncementAsRead(this.id);
+  final String userId;
+  const MarkAnnouncementAsRead(this.id, this.userId);
   @override
-  List<Object> get props => [id];
+  List<Object> get props => [id, userId];
 }
 
 class AddReaction extends AnnouncementEvent {
   final String id;
+  final String userId;
   final String reaction;
-  const AddReaction(this.id, this.reaction);
+  const AddReaction(this.id, this.userId, this.reaction);
   @override
-  List<Object> get props => [id, reaction];
+  List<Object> get props => [id, userId, reaction];
 }
