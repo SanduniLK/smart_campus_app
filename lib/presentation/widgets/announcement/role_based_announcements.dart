@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
+import 'package:smart_campus_app/core/services/notification_service.dart';
 import 'package:smart_campus_app/core/services/rest_api_service.dart';
 
 import 'package:smart_campus_app/presentation/widgets/glass_card.dart';
@@ -65,46 +66,63 @@ class _CreateAnnouncementSheetState extends State<CreateAnnouncementSheet> {
     super.dispose();
   }
 
-  Future<void> _postAnnouncement() async {
-    if (!_formKey.currentState!.validate()) return;
+ 
+
+Future<void> _postAnnouncement() async {
+  if (!_formKey.currentState!.validate()) return;
+  
+  setState(() => _isPosting = true);
+
+  try {
+    final announcement = {
+      'title': _titleController.text,
+      'content': _contentController.text,
+      'type': _selectedType,
+      'priority': _selectedPriority,
+      'targetAudience': _selectedAudience,
+      'createdBy': widget.userId,
+      'createdByRole': widget.userRole,
+      'createdByName': widget.userName,
+      'createdAt': DateTime.now().toUtc().toIso8601String(),
+      'readBy': [],
+    };
+
+    final id = await AnnouncementRestApi.createAnnouncement(announcement);
     
-    setState(() => _isPosting = true);
-
-    try {
-      final announcement = {
-        'title': _titleController.text,
-        'content': _contentController.text,
-        'type': _selectedType,
-        'priority': _selectedPriority,
-        'targetAudience': _selectedAudience,
-        'createdBy': widget.userId,
-        'createdByRole': widget.userRole,
-        'createdByName': widget.userName,
-        'createdAt': DateTime.now(),
-        'readBy': [],
-      };
-
-      final id = await AnnouncementRestApi.createAnnouncement(announcement);
+    if (id != null) {
+      // ✅ Send push notification for ALL announcements (not just urgent)
+      final notificationService = NotificationService();
+      await notificationService.sendAnnouncementNotification(
+        _titleController.text,
+        _contentController.text,
+        _selectedPriority,
+      );
       
-      if (id != null && mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Announcement posted successfully!'), backgroundColor: Colors.green),
+          SnackBar(
+            content: Text(
+              _selectedPriority == 'urgent' 
+                  ? '⚠️ Urgent announcement posted! Push notification sent to all users.'
+                  : 'Announcement posted! Push notification sent.',
+            ),
+            backgroundColor: _selectedPriority == 'urgent' ? Colors.red : Colors.green,
+          ),
         );
         widget.onCreated();
         Navigator.pop(context);
-      } else {
-        throw Exception('Failed to create announcement');
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      setState(() => _isPosting = false);
     }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
+  } finally {
+    setState(() => _isPosting = false);
   }
+}
 
   @override
   Widget build(BuildContext context) {

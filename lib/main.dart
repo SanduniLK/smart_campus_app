@@ -1,3 +1,4 @@
+// main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -5,6 +6,7 @@ import 'package:smart_campus_app/business_logic/event/event_bloc.dart';
 import 'package:smart_campus_app/core/theme/app_theme.dart';
 import 'package:smart_campus_app/core/services/database_service.dart';
 import 'package:smart_campus_app/core/services/firebase_service.dart';
+import 'package:smart_campus_app/core/services/notification_service.dart';
 import 'package:smart_campus_app/data/repositories/auth_repository.dart';
 import 'package:smart_campus_app/data/repositories/event/event_repository.dart';
 import 'package:smart_campus_app/data/repositories/time_table/timetable_repository.dart';
@@ -27,9 +29,13 @@ void main() async {
   try {
     await Firebase.initializeApp();
     await DatabaseService().database;
-    print('✅ Firebase & SQLite initialized');
+    
+    // ✅ Initialize notification service
+    await NotificationService().initialize();
+    
+    debugPrint('✅ Firebase, SQLite & Notifications initialized');
   } catch (e) {
-    print('❌ Initialization error: $e');
+    debugPrint('❌ Initialization error: $e');
   }
   
   runApp(const SmartCampusApp());
@@ -71,10 +77,10 @@ class SmartCampusApp extends StatelessWidget {
             ),
           ),
           BlocProvider<EventBloc>(
-  create: (context) => EventBloc(
-    repository: EventRepository(),
-  ),
-),
+            create: (context) => EventBloc(
+              repository: EventRepository(),
+            ),
+          ),
         ],
         child: MaterialApp(
           title: 'Smart Campus',

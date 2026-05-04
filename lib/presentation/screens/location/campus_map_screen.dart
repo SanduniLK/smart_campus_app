@@ -50,47 +50,50 @@ class _CampusMapScreenState extends State<CampusMapScreen> with SingleTickerProv
     super.dispose();
   }
 
-  Future<void> _getCurrentLocation() async {
-    try {
-      setState(() => _isLoadingLocation = true);
-      
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        await Geolocator.openLocationSettings();
+  // In campus_map_screen.dart, update the _getCurrentLocation method:
+
+Future<void> _getCurrentLocation() async {
+  try {
+    setState(() => _isLoadingLocation = true);
+    
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      await Geolocator.openLocationSettings();
+      setState(() => _isLoadingLocation = false);
+      return;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
         setState(() => _isLoadingLocation = false);
         return;
       }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          setState(() => _isLoadingLocation = false);
-          return;
-        }
-      }
-
-      // Fixed: Use updated Geolocator API
-      LocationSettings locationSettings = const LocationSettings(
-        accuracy: LocationAccuracy.high,
-      );
-      
-      Position position = await Geolocator.getCurrentPosition(
-        locationSettings: locationSettings,
-      );
-      
-      setState(() {
-        _currentPosition = LatLng(position.latitude, position.longitude);
-        _isLoadingLocation = false;
-      });
-      
-      _animateToCurrentLocation();
-      
-    } catch (e) {
-      debugPrint('Error: $e');
-      setState(() => _isLoadingLocation = false);
     }
+
+    if (permission == LocationPermission.deniedForever) {
+      setState(() => _isLoadingLocation = false);
+      return;
+    }
+
+    // ✅ FIXED: For geolocator ^14.0.2
+    Position position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+    
+    setState(() {
+      _currentPosition = LatLng(position.latitude, position.longitude);
+      _isLoadingLocation = false;
+    });
+    
+    _animateToCurrentLocation();
+    
+  } catch (e) {
+    debugPrint('Error: $e');
+    setState(() => _isLoadingLocation = false);
   }
+}
 
   void _animateToCurrentLocation() {
     if (_mapController != null && _currentPosition != null) {

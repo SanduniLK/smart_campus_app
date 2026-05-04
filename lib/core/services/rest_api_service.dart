@@ -1,6 +1,7 @@
 // lib/core/services/announcement_rest_api.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:smart_campus_app/core/services/notification_service.dart';
 
 class AnnouncementRestApi {
   static const String projectId = 'noti-5e8b7';
@@ -267,4 +268,12 @@ class AnnouncementRestApi {
       return false;
     }
   }
+  static Future<void> sendPushNotificationForAnnouncement(String title, String content, String priority) async {
+  try {
+    final notificationService = NotificationService();
+    await notificationService.sendAnnouncementNotification(title, content, priority);
+  } catch (e) {
+    print('Failed to send push: $e');
+  }
+}
 }
