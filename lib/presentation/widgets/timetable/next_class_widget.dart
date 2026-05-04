@@ -27,11 +27,10 @@ class _NextClassWidgetState extends State<NextClassWidget> with TickerProviderSt
   bool _isLoading = true;
   final DatabaseService _db = DatabaseService();
   
-  // Animation Controllers - Pure Yellow Animation
-  late AnimationController _yellowAnimationController;
-  late Animation<double> _yellowPulseScale;
-  late Animation<double> _yellowGlowIntensity;
-  late Animation<double> _yellowBorderWidth;
+  // Animation Controllers for Rotating Color
+  late AnimationController _colorAnimationController;
+  late Animation<Color?> _borderColorAnimation;
+  late Animation<double> _glowAnimation;
   
   late AnimationController _slideController;
   late Animation<Offset> _slideAnimation;
@@ -43,22 +42,25 @@ class _NextClassWidgetState extends State<NextClassWidget> with TickerProviderSt
     super.initState();
     _findNextClass();
     
-    // Pure Yellow Pulsing Animation
-    _yellowAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
+    // Color mix animation (Pink <-> Purple)
+    _colorAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
       vsync: this,
     )..repeat(reverse: true);
     
-    _yellowPulseScale = Tween<double>(begin: 1.0, end: 1.02).animate(
-      CurvedAnimation(parent: _yellowAnimationController, curve: Curves.easeInOut),
-    );
+    _borderColorAnimation = ColorTween(
+      begin: AppColors.softMagenta,   // Pink #FF5CCC
+      end: AppColors.electricPurple,   // Purple #8E54E9
+    ).animate(CurvedAnimation(
+      parent: _colorAnimationController,
+      curve: Curves.easeInOut,
+    ));
     
-    _yellowGlowIntensity = Tween<double>(begin: 0.4, end: 0.9).animate(
-      CurvedAnimation(parent: _yellowAnimationController, curve: Curves.easeInOut),
-    );
-    
-    _yellowBorderWidth = Tween<double>(begin: 2.0, end: 4.0).animate(
-      CurvedAnimation(parent: _yellowAnimationController, curve: Curves.easeInOut),
+    _glowAnimation = Tween<double>(begin: 0.3, end: 0.9).animate(
+      CurvedAnimation(
+        parent: _colorAnimationController,
+        curve: Curves.easeInOut,
+      ),
     );
     
     _slideController = AnimationController(
@@ -86,7 +88,7 @@ class _NextClassWidgetState extends State<NextClassWidget> with TickerProviderSt
 
   @override
   void dispose() {
-    _yellowAnimationController.dispose();
+    _colorAnimationController.dispose();
     _slideController.dispose();
     _fadeController.dispose();
     super.dispose();
@@ -204,6 +206,7 @@ class _NextClassWidgetState extends State<NextClassWidget> with TickerProviderSt
       minutesRemaining = endTimeMinutes - currentTime;
       statusColor = Colors.green;
       statusIcon = Icons.play_circle;
+      displayStatus = 'ONGOING';
     } else if (status == 'UPCOMING') {
       minutesRemaining = startTimeMinutes - currentTime;
       if (minutesRemaining <= 15) {
@@ -211,12 +214,12 @@ class _NextClassWidgetState extends State<NextClassWidget> with TickerProviderSt
         statusIcon = Icons.timer;
         displayStatus = 'STARTING SOON';
       } else {
-        statusColor = AppColors.vibrantYellow;
+        statusColor = AppColors.electricPurple;
         statusIcon = Icons.schedule;
         displayStatus = 'NEXT CLASS';
       }
     } else {
-      statusColor = AppColors.vibrantYellow;
+      statusColor = AppColors.electricPurple;
       statusIcon = Icons.event;
     }
     
@@ -335,279 +338,244 @@ class _NextClassWidgetState extends State<NextClassWidget> with TickerProviderSt
     final statusIcon = classData['statusIcon'];
     final isOngoing = status == 'ONGOING';
     final isStartingSoon = status == 'STARTING SOON';
-    final isNextClass = status == 'NEXT CLASS';
-    
-    // Only show yellow animation for NEXT CLASS
-    final showYellowAnimation = isNextClass;
     
     return AnimatedBuilder(
-      animation: Listenable.merge([
-        if (showYellowAnimation) _yellowAnimationController,
-        _slideController, 
-        _fadeController
-      ]),
+      animation: Listenable.merge([_colorAnimationController, _slideController, _fadeController]),
       builder: (context, child) {
         return FadeTransition(
           opacity: _fadeAnimation,
           child: SlideTransition(
             position: _slideAnimation,
-            child: Transform.scale(
-              scale: showYellowAnimation ? _yellowPulseScale.value : 1.0,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  // Rotating color glow (Pink <-> Purple)
+                  BoxShadow(
+                    color: (_borderColorAnimation.value ?? AppColors.electricPurple).withValues(alpha: _glowAnimation.value * 0.5),
+                    blurRadius: 25 * _glowAnimation.value,
+                    spreadRadius: 5 * _glowAnimation.value,
+                  ),
+                ],
+              ),
               child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(25),
-                  boxShadow: [
-                    if (showYellowAnimation)
-                      BoxShadow(
-                        color: AppColors.vibrantYellow.withValues(alpha: _yellowGlowIntensity.value * 0.6),
-                        blurRadius: 25 * _yellowGlowIntensity.value,
-                        spreadRadius: 5 * _yellowGlowIntensity.value,
-                      ),
-                    BoxShadow(
-                      color: statusColor.withValues(alpha: 0.3),
-                      blurRadius: 15,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(25),
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.white.withValues(alpha: 0.08),
-                        Colors.white.withValues(alpha: 0.03),
-                      ],
-                    ),
-                    border: showYellowAnimation
-                        ? Border.all(
-                            color: AppColors.vibrantYellow,
-                            width: _yellowBorderWidth.value,
-                          )
-                        : null,
+                  borderRadius: BorderRadius.circular(28),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.06),
+                      Colors.white.withValues(alpha: 0.02),
+                    ],
                   ),
-                  child: GlassCard(
-                    padding: const EdgeInsets.all(20),
-                    borderColor: showYellowAnimation ? AppColors.vibrantYellow : statusColor,
-                    borderWidth: showYellowAnimation ? _yellowBorderWidth.value : 1,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Status Badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: isNextClass || isStartingSoon
-                                  ? [AppColors.vibrantYellow.withValues(alpha: 0.25), AppColors.vibrantYellow.withValues(alpha: 0.1)]
-                                  : [statusColor.withValues(alpha: 0.15), statusColor.withValues(alpha: 0.05)],
+                  border: Border.all(
+                    color: _borderColorAnimation.value ?? AppColors.electricPurple,
+                    width: 2.5,
+                  ),
+                ),
+                child: GlassCard(
+                  padding: const EdgeInsets.all(20),
+                  borderColor: _borderColorAnimation.value ?? AppColors.electricPurple,
+                  borderWidth: 2.5,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Status Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(25),
+                          border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 1),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(statusIcon, size: 18, color: statusColor),
+                            const SizedBox(width: 8),
+                            Text(
+                              status,
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: statusColor,
+                                letterSpacing: 0.5,
+                              ),
                             ),
-                            borderRadius: BorderRadius.circular(25),
-                            border: Border.all(
-                              color: isNextClass || isStartingSoon ? AppColors.vibrantYellow : statusColor,
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(statusIcon, size: 18, color: isNextClass ? AppColors.vibrantYellow : statusColor),
-                              const SizedBox(width: 8),
+                            if (!isOngoing && minutesRemaining > 0 && minutesRemaining <= 60) ...[
+                              Container(
+                                width: 4,
+                                height: 4,
+                                margin: const EdgeInsets.symmetric(horizontal: 8),
+                                decoration: BoxDecoration(
+                                  color: statusColor,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
                               Text(
-                                status,
+                                _formatMinutes(minutesRemaining),
                                 style: GoogleFonts.poppins(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color: isNextClass ? AppColors.vibrantYellow : statusColor,
-                                  letterSpacing: 0.5,
+                                  color: statusColor,
                                 ),
                               ),
-                              if (!isOngoing && minutesRemaining > 0 && minutesRemaining <= 60) ...[
-                                Container(
-                                  width: 4,
-                                  height: 4,
-                                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                                  decoration: BoxDecoration(
-                                    color: isNextClass ? AppColors.vibrantYellow : statusColor,
-                                    shape: BoxShape.circle,
-                                  ),
+                            ],
+                            if (isOngoing && minutesRemaining > 0) ...[
+                              Container(
+                                width: 4,
+                                height: 4,
+                                margin: const EdgeInsets.symmetric(horizontal: 8),
+                                decoration: BoxDecoration(
+                                  color: statusColor,
+                                  shape: BoxShape.circle,
                                 ),
-                                Text(
-                                  _formatMinutes(minutesRemaining),
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: isNextClass ? AppColors.vibrantYellow : statusColor,
-                                  ),
+                              ),
+                              Text(
+                                '${_formatMinutes(minutesRemaining)} left',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: statusColor,
                                 ),
-                              ],
-                              if (isOngoing && minutesRemaining > 0) ...[
-                                Container(
-                                  width: 4,
-                                  height: 4,
-                                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                                  decoration: BoxDecoration(
-                                    color: statusColor,
-                                    shape: BoxShape.circle,
-                                  ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      // Attention Message
+                      if (isStartingSoon)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            children: [
+                              Icon(Icons.touch_app, size: 16, color: AppColors.softMagenta),
+                              const SizedBox(width: 8),
+                              Text(
+                                '⚠️ GET READY! CLASS STARTING SOON',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.softMagenta,
+                                  letterSpacing: 0.8,
                                 ),
-                                Text(
-                                  '${_formatMinutes(minutesRemaining)} left',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: statusColor,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 20),
-                        
-                        // Attention Message
-                        if (isNextClass || isStartingSoon)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: Row(
-                              children: [
-                                Icon(Icons.touch_app, size: 16, color: AppColors.vibrantYellow),
-                                const SizedBox(width: 8),
-                                Text(
-                                  isStartingSoon ? '⚠️ GET READY! CLASS STARTING SOON' : '👉 YOUR NEXT CLASS IS HERE!',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.vibrantYellow,
-                                    letterSpacing: 0.8,
+                      
+                      // Course Name
+                      Text(
+                        '${classData['courseId']} – ${classData['courseName']}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Time
+                      Row(
+                        children: [
+                          Icon(Icons.access_time, size: 16, color: Colors.white54),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${classData['startTime']} – ${classData['endTime']}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14, 
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      
+                      // Location
+                      Row(
+                        children: [
+                          Icon(Icons.location_on, size: 16, color: Colors.white54),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${classData['roomNumber']} • ${classData['building']}',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14, 
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      
+                      // Lecturer
+                      Row(
+                        children: [
+                          Icon(Icons.person_outline, size: 16, color: Colors.white54),
+                          const SizedBox(width: 8),
+                          Text(
+                            classData['lecturerName'],
+                            style: GoogleFonts.poppins(
+                              fontSize: 14, 
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      // Action Button
+                      if (isStartingSoon)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(15),
+                              gradient: LinearGradient(
+                                colors: [AppColors.softMagenta, AppColors.electricPurple],
+                              ),
+                            ),
+                            child: ElevatedButton(
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('📍 Head to ${classData['roomNumber']} - ${classData['building']}'),
+                                    backgroundColor: AppColors.electricPurple,
+                                    duration: const Duration(seconds: 3),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        
-                        // Course Name
-                        Text(
-                          '${classData['courseId']} – ${classData['courseName']}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        
-                        // Time
-                        Row(
-                          children: [
-                            Icon(Icons.access_time, size: 16, color: isNextClass ? AppColors.vibrantYellow : Colors.white54),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${classData['startTime']} – ${classData['endTime']}',
-                              style: GoogleFonts.poppins(
-                                fontSize: 14, 
-                                color: isNextClass ? AppColors.vibrantYellow : Colors.white70,
-                                fontWeight: isNextClass ? FontWeight.w500 : FontWeight.normal,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        
-                        // Location
-                        Row(
-                          children: [
-                            Icon(Icons.location_on, size: 16, color: isNextClass ? AppColors.vibrantYellow : Colors.white54),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                '${classData['roomNumber']} • ${classData['building']}',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14, 
-                                  color: isNextClass ? AppColors.vibrantYellow : Colors.white70,
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        
-                        // Lecturer
-                        Row(
-                          children: [
-                            Icon(Icons.person_outline, size: 16, color: isNextClass ? AppColors.vibrantYellow : Colors.white54),
-                            const SizedBox(width: 8),
-                            Text(
-                              classData['lecturerName'],
-                              style: GoogleFonts.poppins(
-                                fontSize: 14, 
-                                color: isNextClass ? AppColors.vibrantYellow : Colors.white70,
-                              ),
-                            ),
-                          ],
-                        ),
-                        
-                        // Action Button
-                        if (isNextClass || isStartingSoon)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 16),
-                            child: Container(
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(15),
-                                gradient: LinearGradient(
-                                  colors: [AppColors.vibrantYellow, AppColors.vibrantYellow.withValues(alpha: 0.8)],
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.vibrantYellow.withValues(alpha: _yellowGlowIntensity.value * 0.5),
-                                    blurRadius: 15,
-                                    spreadRadius: 2,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.directions, color: Colors.white, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'GO TO CLASS NOW →',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ],
                               ),
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('📍 Head to ${classData['roomNumber']} - ${classData['building']}'),
-                                      backgroundColor: AppColors.vibrantYellow,
-                                      duration: const Duration(seconds: 3),
-                                    ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.transparent,
-                                  shadowColor: Colors.transparent,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(15),
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.directions, color: Colors.white, size: 20),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      isStartingSoon ? 'GO TO CLASS NOW →' : 'VIEW CLASS LOCATION →',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
                             ),
                           ),
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
                 ),
               ),
