@@ -9,33 +9,38 @@ abstract class EventEvent extends Equatable {
 }
 
 class LoadEvents extends EventEvent {}
+class LoadApprovedEvents extends EventEvent {}
 class LoadPendingEvents extends EventEvent {}
+
 class CreateEvent extends EventEvent {
   final Event event;
   const CreateEvent(this.event);
   @override
   List<Object> get props => [event];
 }
+
 class ApproveEvent extends EventEvent {
-  final int eventId;
+  final String eventId; // Changed from int to String
   const ApproveEvent(this.eventId);
   @override
   List<Object> get props => [eventId];
 }
+
 class RejectEvent extends EventEvent {
-  final int eventId;
+  final String eventId; // Changed from int to String
   const RejectEvent(this.eventId);
   @override
   List<Object> get props => [eventId];
 }
+
 class RegisterForEvent extends EventEvent {
   final int eventId;
   const RegisterForEvent(this.eventId);
   @override
   List<Object> get props => [eventId];
 }
+
 class LoadMyRegistrations extends EventEvent {}
-class LoadApprovedEvents extends EventEvent {}
 class ScanQR extends EventEvent {
   final int eventId;
   final String userId;

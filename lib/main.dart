@@ -6,16 +6,12 @@ import 'package:smart_campus_app/business_logic/event/event_bloc.dart';
 import 'package:smart_campus_app/core/theme/app_theme.dart';
 import 'package:smart_campus_app/core/services/database_service.dart';
 import 'package:smart_campus_app/core/services/firebase_service.dart';
-import 'package:smart_campus_app/core/services/notification_service.dart';
 import 'package:smart_campus_app/data/repositories/auth_repository.dart';
 import 'package:smart_campus_app/data/repositories/event/event_repository.dart';
 import 'package:smart_campus_app/data/repositories/time_table/timetable_repository.dart';
-
 import 'package:smart_campus_app/business_logic/auth_bloc/auth_bloc.dart';
 import 'package:smart_campus_app/business_logic/auth_bloc/auth_event.dart';
 import 'package:smart_campus_app/business_logic/timetable/timetable_bloc.dart';
-
-// Screens
 import 'package:smart_campus_app/presentation/screens/splash/splash_screen.dart';
 import 'package:smart_campus_app/presentation/screens/auth/login_screen.dart';
 import 'package:smart_campus_app/presentation/screens/auth/role_selection_screen.dart';
@@ -28,12 +24,13 @@ void main() async {
   
   try {
     await Firebase.initializeApp();
-    await DatabaseService().database;
+    debugPrint('✅ Firebase initialized');
     
-    // ✅ Initialize notification service
-    await NotificationService().initialize();
+    // Initialize database (this will create the database if it doesn't exist)
+    final dbService = DatabaseService();
+    await dbService.database; // This triggers database creation
+    debugPrint('✅ SQLite database initialized');
     
-    debugPrint('✅ Firebase, SQLite & Notifications initialized');
   } catch (e) {
     debugPrint('❌ Initialization error: $e');
   }
@@ -46,31 +43,26 @@ class SmartCampusApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Create service instances
     final firebaseService = FirebaseService();
 
     return MultiRepositoryProvider(
       providers: [
-        // Auth Repository
         RepositoryProvider<AuthRepository>(
           create: (context) => AuthRepository(
             firebaseService: firebaseService,
           ),
         ),
-        // Timetable Repository
         RepositoryProvider<TimetableRepository>(
           create: (context) => TimetableRepository(),
         ),
       ],
       child: MultiBlocProvider(
         providers: [
-          // Auth Bloc
           BlocProvider<AuthBloc>(
             create: (context) => AuthBloc(
               authRepository: context.read<AuthRepository>(),
             )..add(AuthCheckStatusRequested()),
           ),
-          // Timetable Bloc
           BlocProvider<TimetableBloc>(
             create: (context) => TimetableBloc(
               repository: context.read<TimetableRepository>(),

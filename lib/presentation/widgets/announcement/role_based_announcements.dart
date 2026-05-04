@@ -1,5 +1,6 @@
 // lib/presentation/widgets/announcement/role_based_announcements.dart
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
@@ -83,35 +84,41 @@ Future<void> _postAnnouncement() async {
       'createdBy': widget.userId,
       'createdByRole': widget.userRole,
       'createdByName': widget.userName,
-      'createdAt': DateTime.now().toUtc().toIso8601String(),
+      'createdAt': FieldValue.serverTimestamp(),
       'readBy': [],
     };
 
-    final id = await AnnouncementRestApi.createAnnouncement(announcement);
+    final docRef = await FirebaseFirestore.instance
+        .collection('announcements')
+        .add(announcement);
     
-    if (id != null) {
-      // ✅ Send push notification for ALL announcements (not just urgent)
-      final notificationService = NotificationService();
-      await notificationService.sendAnnouncementNotification(
-        _titleController.text,
-        _contentController.text,
-        _selectedPriority,
+    // ✅ SAVE TO USER NOTIFICATIONS COLLECTION
+    await FirebaseFirestore.instance.collection('user_notifications').add({
+      'userId': 'all',
+      'title': _selectedPriority == 'urgent' ? '🔴 URGENT: ${_titleController.text}' : '📢 New Announcement: ${_titleController.text}',
+      'body': _contentController.text,
+      'type': 'announcement',
+      'priority': _selectedPriority,
+      'createdAt': FieldValue.serverTimestamp(),
+      'isRead': false,
+      'announcementId': docRef.id,
+    });
+    
+    // Send push notification
+    await NotificationService().sendAnnouncementNotification(
+      _titleController.text,
+      _contentController.text,
+      _selectedPriority,
+    );
+    
+    debugPrint('✅ Announcement saved to notifications');
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Announcement posted successfully!'), backgroundColor: Colors.green),
       );
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _selectedPriority == 'urgent' 
-                  ? '⚠️ Urgent announcement posted! Push notification sent to all users.'
-                  : 'Announcement posted! Push notification sent.',
-            ),
-            backgroundColor: _selectedPriority == 'urgent' ? Colors.red : Colors.green,
-          ),
-        );
-        widget.onCreated();
-        Navigator.pop(context);
-      }
+      widget.onCreated();
+      Navigator.pop(context);
     }
   } catch (e) {
     if (mounted) {

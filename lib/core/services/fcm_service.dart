@@ -45,59 +45,115 @@ class FCMService {
   }
 
   Future<bool> sendNotification({
-    required String title,
-    required String body,
-    required String priority,
-    String? imageUrl,
-    Map<String, String>? data,
-  }) async {
-    try {
-      final accessToken = await _getAccessToken();
-      final projectId = await _getProjectId();
+  required String title,
+  required String body,
+  required String priority,
+  String? imageUrl,
+  Map<String, String>? data,
+  String? topic,
+}) async {
+  try {
+    debugPrint('📤 Preparing to send FCM notification...');
+    debugPrint('   Title: $title');
+    debugPrint('   Topic: ${topic ?? 'announcements'}');
+    
+    final accessToken = await _getAccessToken();
+    final projectId = await _getProjectId();
 
-      final url = 'https://fcm.googleapis.com/v1/projects/$projectId/messages:send';
+    final url = 'https://fcm.googleapis.com/v1/projects/$projectId/messages:send';
 
-      final message = {
-        'message': {
-          'topic': 'announcements',
-          'notification': {
-            'title': priority == 'urgent' ? '🔴 URGENT: $title' : '📢 $title',
-            'body': body.length > 100 ? '${body.substring(0, 100)}...' : body,
-            if (imageUrl != null) 'image': imageUrl,
-          },
-          'android': {
-            'priority': priority == 'urgent' ? 'high' : 'normal',
-          },
+    final message = {
+      'message': {
+        'topic': topic ?? 'announcements',
+        'notification': {
+          'title': title,
+          'body': body,
         },
-      };
-
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $accessToken',
+        'android': {
+          'priority': priority == 'urgent' ? 'high' : 'normal',
         },
-        body: jsonEncode(message),
-      );
+      },
+    };
 
-      if (response.statusCode == 200) {
-        debugPrint('✅ Push notification sent');
-        return true;
-      } else {
-        debugPrint('❌ Failed: ${response.statusCode} - ${response.body}');
-        return false;
-      }
-    } catch (e) {
-      debugPrint('❌ Error: $e');
+    debugPrint('📤 Sending to: $url');
+    debugPrint('📤 Message: ${jsonEncode(message)}');
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $accessToken',
+      },
+      body: jsonEncode(message),
+    );
+
+    debugPrint('📥 Response status: ${response.statusCode}');
+    debugPrint('📥 Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      debugPrint('✅ Push notification sent successfully!');
+      return true;
+    } else {
+      debugPrint('❌ Failed to send: ${response.statusCode} - ${response.body}');
       return false;
     }
+  } catch (e) {
+    debugPrint('❌ Error sending notification: $e');
+    return false;
   }
+}
 
   Future<String> _getProjectId() async {
     final credentials = await _loadServiceAccount();
     return credentials['project_id'];
   }
+ 
+Future<bool> sendToDevice({
+  required String deviceToken,
+  required String title,
+  required String body,
+  required String priority,
+}) async {
+  try {
+    final accessToken = await _getAccessToken();
+    final projectId = await _getProjectId();
 
+    final url = 'https://fcm.googleapis.com/v1/projects/$projectId/messages:send';
+
+    final message = {
+      'message': {
+        'token': deviceToken,
+        'notification': {
+          'title': title,
+          'body': body,
+        },
+        'android': {
+          'priority': priority == 'high' ? 'high' : 'normal',
+        },
+      },
+    };
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $accessToken',
+      },
+      body: jsonEncode(message),
+    );
+
+    if (response.statusCode == 200) {
+      debugPrint('✅ Personal notification sent to device');
+      return true;
+    } else {
+      debugPrint('❌ Failed to send: ${response.statusCode} - ${response.body}');
+      return false;
+    }
+  } catch (e) {
+    debugPrint('❌ Error: $e');
+    return false;
+  }
+}
   void close() {
     _client?.close();
   }

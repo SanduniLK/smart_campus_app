@@ -9,32 +9,52 @@ import 'package:smart_campus_app/business_logic/event/event_event.dart';
 import 'package:smart_campus_app/business_logic/event/event_state.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
 import 'package:smart_campus_app/core/services/database_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class QRScannerScreen extends StatefulWidget {
   final int eventId;
   final String eventName;
   final bool isOrganizer;
-  const QRScannerScreen({super.key,required this.eventId,
+  
+  const QRScannerScreen({
+    super.key,
+    required this.eventId,
     required this.eventName,
-    this.isOrganizer = false,});
+    this.isOrganizer = false,
+  });
 
   @override
   State<QRScannerScreen> createState() => _QRScannerScreenState();
 }
 
-class _QRScannerScreenState extends State<QRScannerScreen> {
+class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderStateMixin {
   MobileScannerController? _controller;
   bool _isScanning = true;
   bool _isProcessing = false;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
-    _controller = MobileScannerController();
+    _controller = MobileScannerController(
+      facing: CameraFacing.back,
+      torchEnabled: false,
+    );
+    
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat(reverse: true);
+    
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
+    _pulseController.dispose();
     _controller?.dispose();
     super.dispose();
   }
@@ -44,7 +64,11 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Scan QR Code', style: TextStyle(color: Colors.white)),
+        title: Text(
+          'Scan QR Code - ${widget.eventName}',
+          style: GoogleFonts.poppins(color: Colors.white, fontSize: 16),
+          overflow: TextOverflow.ellipsis,
+        ),
         backgroundColor: Colors.transparent,
         actions: [
           IconButton(
@@ -72,48 +96,152 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
               flex: 3,
               child: Stack(
                 children: [
-                  MobileScanner(
-                    controller: _controller,
-                    onDetect: (capture) {
-                      if (!_isScanning || _isProcessing) return;
-                      
-                      final barcode = capture.barcodes.first;
-                      final String? code = barcode.rawValue;
-                      
-                      if (code != null) {
-                        _processQRCode(code);
-                      }
-                    },
-                  ),
-                  // Scanner overlay guide
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: AppColors.electricPurple,
-                        width: 3,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    margin: const EdgeInsets.all(50),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(17),
-                        color: Colors.transparent,
-                      ),
+                  // Camera Preview
+                  ClipRRect(
+                    child: MobileScanner(
+                      controller: _controller,
+                      onDetect: (capture) {
+                        if (!_isScanning || _isProcessing) return;
+                        
+                        final barcode = capture.barcodes.first;
+                        final String? code = barcode.rawValue;
+                        
+                        if (code != null && code.isNotEmpty) {
+                          _processQRCode(code);
+                        }
+                      },
                     ),
                   ),
+                  
+                  // Scanner Frame Overlay
+                  Center(
+                    child: AnimatedBuilder(
+                      animation: _pulseAnimation,
+                      builder: (context, child) {
+                        return Container(
+                          width: 250 * _pulseAnimation.value,
+                          height: 250 * _pulseAnimation.value,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: AppColors.electricPurple,
+                              width: 3,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.electricPurple.withValues(alpha: 0.3),
+                                blurRadius: 20,
+                                spreadRadius: 5,
+                              ),
+                            ],
+                          ),
+                          child: Stack(
+                            children: [
+                              // Corner decorations
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                child: Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      top: BorderSide(color: AppColors.electricPurple, width: 4),
+                                      left: BorderSide(color: AppColors.electricPurple, width: 4),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                top: 0,
+                                right: 0,
+                                child: Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      top: BorderSide(color: AppColors.electricPurple, width: 4),
+                                      right: BorderSide(color: AppColors.electricPurple, width: 4),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                left: 0,
+                                child: Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      bottom: BorderSide(color: AppColors.electricPurple, width: 4),
+                                      left: BorderSide(color: AppColors.electricPurple, width: 4),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      bottom: BorderSide(color: AppColors.electricPurple, width: 4),
+                                      right: BorderSide(color: AppColors.electricPurple, width: 4),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  
+                  // Scanning Line Animation
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    child: AnimatedBuilder(
+                      animation: _pulseController,
+                      builder: (context, child) {
+                        return Container(
+                          height: 2,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.transparent,
+                                AppColors.electricPurple,
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                          margin: EdgeInsets.symmetric(
+                            horizontal: 50,
+                            vertical: MediaQuery.of(context).size.height / 3 + (_pulseController.value * 100),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  
+                  // Processing Overlay
                   if (_isProcessing)
                     Container(
-                      color: Colors.black54,
-                      child: const Center(
+                      color: Colors.black.withValues(alpha: 0.8),
+                      child: Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 16),
+                            const CircularProgressIndicator(color: AppColors.electricPurple),
+                            const SizedBox(height: 16),
                             Text(
-                              'Processing QR Code...',
-                              style: TextStyle(color: Colors.white),
+                              'Verifying QR Code...',
+                              style: GoogleFonts.poppins(color: Colors.white),
                             ),
                           ],
                         ),
@@ -122,47 +250,81 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                 ],
               ),
             ),
+            
+            // Bottom Info Panel
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: AppColors.glassSurface,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppColors.glassSurface,
+                    AppColors.background,
+                  ],
+                ),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
               ),
               child: Column(
                 children: [
-                  const Icon(Icons.qr_code_scanner, size: 50, color: AppColors.electricPurple),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Position the QR code inside the frame',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  Container(
+                    width: 50,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Only valid event QR codes will be accepted',
-                    style: TextStyle(color: Colors.white54, fontSize: 12),
-                  ),
-                  const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      IconButton(
+                      Icon(Icons.qr_code_scanner, size: 24, color: AppColors.electricPurple),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Scan QR Code',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Position the QR code inside the frame',
+                    style: GoogleFonts.poppins(color: Colors.white70, fontSize: 14),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.isOrganizer 
+                        ? 'Scan student QR codes to mark attendance'
+                        : 'Show this QR code at the event entrance',
+                    style: GoogleFonts.poppins(color: Colors.white54, fontSize: 12),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildControlButton(
+                        icon: Icons.cameraswitch,
                         onPressed: () => _controller?.switchCamera(),
-                        icon: const Icon(Icons.cameraswitch, color: Colors.white54),
                       ),
-                      const SizedBox(width: 24),
-                      IconButton(
+                      const SizedBox(width: 20),
+                      _buildControlButton(
+                        icon: Icons.flashlight_on,
                         onPressed: () => _controller?.toggleTorch(),
-                        icon: const Icon(Icons.flashlight_on, color: Colors.white54),
                       ),
-                      const SizedBox(width: 24),
-                      IconButton(
+                      const SizedBox(width: 20),
+                      _buildControlButton(
+                        icon: Icons.refresh,
                         onPressed: () {
                           setState(() {
                             _isScanning = true;
                             _isProcessing = false;
                           });
                         },
-                        icon: const Icon(Icons.refresh, color: Colors.white54),
                       ),
                     ],
                   ),
@@ -175,34 +337,37 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     );
   }
 
-  Future<void> _processQRCode(String code) async {
-  setState(() {
-    _isScanning = false;
-    _isProcessing = true;
-  });
+  Widget _buildControlButton({required IconData icon, required VoidCallback onPressed}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.glassSurface,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: Colors.white),
+        onPressed: onPressed,
+      ),
+    );
+  }
 
-  final parts = code.split('|');
-  if (parts.length >= 2) {
-    try {
-      final scannedEventId = int.parse(parts[0]);
-      final userId = parts[1];
-      
-      // Check if this QR code is for the expected event
-      if (scannedEventId != widget.eventId) {
-        _showErrorDialog('This QR code is for a different event!\nExpected: ${widget.eventName}');
-        setState(() {
-          _isScanning = true;
-          _isProcessing = false;
-        });
-        return;
-      }
-      
-      // If organizer, just verify the event matches (can scan any user's QR)
-      // If attendee, verify it's their own QR
-      if (!widget.isOrganizer) {
-        final authState = context.read<AuthBloc>().state;
-        if (authState is! AuthAuthenticated) {
-          _showErrorDialog('User not authenticated');
+  Future<void> _processQRCode(String code) async {
+    setState(() {
+      _isScanning = false;
+      _isProcessing = true;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 100)); // Small delay for UI
+
+    final parts = code.split('|');
+    if (parts.length >= 2) {
+      try {
+        final scannedEventId = int.parse(parts[0]);
+        final userId = parts[1];
+        
+        // Check if this QR code is for the expected event
+        if (scannedEventId != widget.eventId) {
+          _showErrorDialog('This QR code is for a different event!\nExpected: ${widget.eventName}');
           setState(() {
             _isScanning = true;
             _isProcessing = false;
@@ -210,47 +375,59 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           return;
         }
         
-        if (userId != authState.user.id) {
-          _showErrorDialog('This QR code belongs to another user!');
+        // If attendee, verify it's their own QR
+        if (!widget.isOrganizer) {
+          final authState = context.read<AuthBloc>().state;
+          if (authState is! AuthAuthenticated) {
+            _showErrorDialog('User not authenticated');
+            setState(() {
+              _isScanning = true;
+              _isProcessing = false;
+            });
+            return;
+          }
+          
+          if (userId != authState.user.id) {
+            _showErrorDialog('This QR code belongs to another user!');
+            setState(() {
+              _isScanning = true;
+              _isProcessing = false;
+            });
+            return;
+          }
+        }
+        
+        // Check if already scanned
+        final db = DatabaseService();
+        final alreadyScanned = await db.hasUserScannedForEvent(widget.eventId, userId);
+        
+        if (alreadyScanned) {
+          _showErrorDialog('Attendance already marked for this user!');
           setState(() {
             _isScanning = true;
             _isProcessing = false;
           });
           return;
         }
-      }
-      
-      // Check if already scanned
-      final db = DatabaseService();
-      final alreadyScanned = await db.hasUserScannedForEvent(widget.eventId, userId);
-      
-      if (alreadyScanned) {
-        _showErrorDialog('This user has already scanned for this event!');
+        
+        // Proceed with scan
+        context.read<EventBloc>().add(ScanQR(widget.eventId, userId));
+        
+      } catch (e) {
+        _showErrorDialog('Invalid QR Code format');
         setState(() {
           _isScanning = true;
           _isProcessing = false;
         });
-        return;
       }
-      
-      // Proceed with scan
-      context.read<EventBloc>().add(ScanQR(widget.eventId, userId));
-      
-    } catch (e) {
+    } else {
       _showErrorDialog('Invalid QR Code format');
       setState(() {
         _isScanning = true;
         _isProcessing = false;
       });
     }
-  } else {
-    _showErrorDialog('Invalid QR Code format');
-    setState(() {
-      _isScanning = true;
-      _isProcessing = false;
-    });
   }
-}
 
   void _showSuccessDialog() {
     setState(() {
@@ -267,7 +444,12 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           children: [
             Icon(Icons.check_circle, color: Colors.green, size: 32),
             const SizedBox(width: 12),
-            const Text('Attendance Marked!', style: TextStyle(color: Colors.white)),
+            Expanded(
+              child: Text(
+                'Attendance Marked!',
+                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+            ),
           ],
         ),
         content: Column(
@@ -275,20 +457,19 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           children: [
             const Icon(Icons.celebration, size: 80, color: Colors.green),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               '✅ Successfully Scanned!',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+              style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'You can now attend the event.',
-              style: TextStyle(fontSize: 14, color: Colors.white70),
+            Text(
+              widget.isOrganizer 
+                  ? 'Attendance recorded for ${widget.eventName}'
+                  : 'You can now attend ${widget.eventName}',
+              style: GoogleFonts.poppins(fontSize: 14, color: Colors.white70),
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -296,14 +477,14 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
               ),
-              child: const Row(
+              child: Row(
                 children: [
                   Icon(Icons.info_outline, color: Colors.green, size: 16),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Your attendance has been recorded in the system.',
-                      style: TextStyle(color: Colors.green, fontSize: 12),
+                      style: GoogleFonts.poppins(color: Colors.green, fontSize: 12),
                     ),
                   ),
                 ],
@@ -315,9 +496,9 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              Navigator.pop(context, true); // Return to previous screen
+              Navigator.pop(context, true);
             },
-            child: const Text('OK', style: TextStyle(color: AppColors.electricPurple)),
+            child: Text('OK', style: GoogleFonts.poppins(color: AppColors.electricPurple)),
           ),
         ],
       ),
@@ -339,7 +520,12 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           children: [
             Icon(Icons.error, color: Colors.red, size: 32),
             const SizedBox(width: 12),
-            const Text('Scan Failed', style: TextStyle(color: Colors.white)),
+            Expanded(
+              child: Text(
+                'Scan Failed',
+                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+            ),
           ],
         ),
         content: Column(
@@ -349,24 +535,27 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
             const SizedBox(height: 16),
             Text(
               message,
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
+              style: GoogleFonts.poppins(color: Colors.white70, fontSize: 14),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
               ),
-              child: const Row(
+              child: Row(
                 children: [
                   Icon(Icons.info_outline, color: Colors.red, size: 16),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Make sure you are registered for this event and using a valid QR code.',
-                      style: TextStyle(color: Colors.red, fontSize: 12),
+                      widget.isOrganizer
+                          ? 'Make sure the student is registered for this event.'
+                          : 'Make sure you are registered for this event and using a valid QR code.',
+                      style: GoogleFonts.poppins(color: Colors.red, fontSize: 12),
                     ),
                   ),
                 ],
@@ -377,7 +566,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Try Again', style: TextStyle(color: AppColors.electricPurple)),
+            child: Text('Try Again', style: GoogleFonts.poppins(color: AppColors.electricPurple)),
           ),
         ],
       ),

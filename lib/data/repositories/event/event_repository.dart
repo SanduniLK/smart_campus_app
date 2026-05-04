@@ -81,33 +81,18 @@ class EventRepository {
     return eventList;
   }
 
-  // ✅ GET PENDING EVENTS - Online: Firebase, Offline: SQLite
   Future<List<Event>> getPendingEvents() async {
-    final hasInternet = await _hasInternet();
-    
-    if (hasInternet) {
-      try {
-        print('🌐 Online: Fetching pending events from Firebase...');
-        final firestoreEvents = await _firebase.getPendingEventsFromFirestore();
-        
-        if (firestoreEvents.isNotEmpty) {
-          for (var event in firestoreEvents) {
-            await _db.insertOrUpdateEvent(event.toMap());
-          }
-          print('✅ Got ${firestoreEvents.length} pending events from Firebase');
-          return firestoreEvents;
-        }
-      } catch (e) {
-        print('⚠️ Firebase error: $e, falling back to SQLite');
-      }
-    }
-    
-    print('📱 Offline: Loading pending events from SQLite...');
+  try {
+    // ✅ ONLY use Firebase
+    final firestoreEvents = await _firebase.getPendingEventsFromFirestore();
+    print('☁️ Got ${firestoreEvents.length} pending events from Firebase');
+    return firestoreEvents;
+  } catch (e) {
+    print('⚠️ Firebase error, using SQLite fallback: $e');
     final events = await _db.getPendingEvents();
-    final eventList = events.map((map) => Event.fromMap(map)).toList();
-    print('✅ Got ${eventList.length} pending events from SQLite');
-    return eventList;
+    return events.map((map) => Event.fromMap(map)).toList();
   }
+}
 
   // ✅ CREATE EVENT - Save to SQLite FIRST, then sync to Firebase
   Future<int> createEvent(Event event) async {
@@ -288,7 +273,20 @@ class EventRepository {
       _isSyncing = false;
     }
   }
-
+Future<Event?> getEventById(int eventId) async {
+  final eventMap = await _db.getEventById(eventId);
+  if (eventMap != null) {
+    return Event.fromMap(eventMap);
+  }
+  return null;
+}
+Future<Event?> getEventByFirestoreId(String firestoreId) async {
+  final eventMap = await _db.getEventByFirestoreId(firestoreId);
+  if (eventMap != null) {
+    return Event.fromMap(eventMap);
+  }
+  return null;
+}
   // Helper methods
   Future<bool> hasUserScannedForEvent(int eventId, String userId) async {
     return await _db.hasUserScannedForEvent(eventId, userId);

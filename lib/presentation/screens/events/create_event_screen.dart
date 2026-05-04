@@ -8,6 +8,7 @@ import 'package:smart_campus_app/business_logic/event/event_bloc.dart';
 import 'package:smart_campus_app/business_logic/event/event_event.dart';
 import 'package:smart_campus_app/business_logic/event/event_state.dart';
 import 'package:smart_campus_app/core/constants/app_colors.dart';
+import 'package:smart_campus_app/core/services/notification_service.dart';
 import 'package:smart_campus_app/data/models/event/event_model.dart';
 import 'package:smart_campus_app/presentation/widgets/glass_card.dart';
 import 'package:smart_campus_app/presentation/widgets/glass_text_field.dart';
@@ -32,6 +33,15 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   TimeOfDay? _endTime;
   bool _isSubmitting = false;
 
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descController.dispose();
+    _locationController.dispose();
+    _capacityController.dispose();
+    super.dispose();
+  }
+
   Future<void> _selectDate() async {
     final date = await showDatePicker(
       context: context,
@@ -47,7 +57,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         );
       },
     );
-    if (date != null) {
+    if (date != null && mounted) {
       setState(() => _selectedDate = date);
     }
   }
@@ -65,7 +75,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         );
       },
     );
-    if (time != null) {
+    if (time != null && mounted) {
       setState(() {
         if (isStart) {
           _startTime = time;
@@ -78,44 +88,83 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
   String _formatTime(TimeOfDay? time) {
     if (time == null) return 'Not set';
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    final hour = time.hour.toString().padLeft(2, '0');
+    final minute = time.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
   }
 
-  void _submitEvent() {
-    if (_formKey.currentState!.validate()) {
-      final authState = context.read<AuthBloc>().state;
-      if (authState is! AuthAuthenticated) return;
-      
-      final user = authState.user;
-      final isStudent = user.role == 'student';
-      
-      final event = Event(
-        title: _titleController.text.trim(),
-        description: _descController.text.trim(),
-        eventDate: _selectedDate,
-        startTime: _startTime != null ? _formatTime(_startTime) : null,
-        endTime: _endTime != null ? _formatTime(_endTime) : null,
-        location: _locationController.text.trim(),
-        capacity: int.parse(_capacityController.text),
-        status: isStudent ? 'pending' : 'approved',
-        createdBy: user.id,
-        createdByRole: user.role,
-        createdByEmail: user.email,
-        createdAt: DateTime.now(),
-      );
-      
-      context.read<EventBloc>().add(CreateEvent(event));
-      
+  String _formatTimeForNotification(TimeOfDay? time) {
+    if (time == null) return 'TBD';
+    final period = time.hour >= 12 ? 'PM' : 'AM';
+    final hour = time.hour > 12 ? time.hour - 12 : (time.hour == 0 ? 12 : time.hour);
+    return '$hour:${time.minute.toString().padLeft(2, '0')} $period';
+  }
+
+  Future<void> _submitEvent() async {
+    if (!_formKey.currentState!.validate()) return;
+    
+    setState(() => _isSubmitting = true);
+    
+    final authState = context.read<AuthBloc>().state;
+    if (authState is! AuthAuthenticated) {
+      setState(() => _isSubmitting = false);
+      return;
+    }
+    
+    final user = authState.user;
+    final isStudent = user.role == 'student';
+    
+    // Format date for notification
+    final formattedDate = DateFormat('MMM dd, yyyy').format(_selectedDate);
+    final formattedStartTime = _formatTimeForNotification(_startTime);
+    final formattedEndTime = _formatTimeForNotification(_endTime);
+    
+    final event = Event(
+      title: _titleController.text.trim(),
+      description: _descController.text.trim(),
+      eventDate: _selectedDate,
+      startTime: _startTime != null ? _formatTime(_startTime) : null,
+      endTime: _endTime != null ? _formatTime(_endTime) : null,
+      location: _locationController.text.trim(),
+      capacity: int.parse(_capacityController.text),
+      status: isStudent ? 'pending' : 'approved',
+      createdBy: user.id,
+      createdByRole: user.role,
+      createdByEmail: user.email,
+      createdAt: DateTime.now(),
+    );
+    
+    // Create event (this is void, don't assign to variable)
+    context.read<EventBloc>().add(CreateEvent(event));
+    
+    // ✅ Send push notification ONLY if staff creates event (not student)
+    if (!isStudent && mounted) {
+      try {
+        final notificationService = NotificationService();
+        await notificationService.sendNewEventNotification(
+          event.title,
+          '$formattedDate at $formattedStartTime - $formattedEndTime',
+          event.location,
+        );
+        debugPrint('✅ Push notification sent for new event: ${event.title}');
+      } catch (e) {
+        debugPrint('❌ Failed to send push notification: $e');
+      }
+    }
+    
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(isStudent 
             ? 'Event submitted for approval!' 
-            : 'Event created successfully!'),
+            : '✅ Event created successfully! Notification sent to all users.'),
           backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
         ),
       );
       
-      Navigator.pop(context);
+      setState(() => _isSubmitting = false);
+      Navigator.pop(context, true);
     }
   }
 
@@ -132,10 +181,11 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       ),
       body: BlocListener<EventBloc, EventState>(
         listener: (context, state) {
-          if (state is EventError) {
+          if (state is EventError && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(state.message), backgroundColor: Colors.red),
             );
+            setState(() => _isSubmitting = false);
           }
         },
         child: SingleChildScrollView(
@@ -198,6 +248,26 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                       ],
                     ),
                   ),
+                if (!isStudent)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.notifications_active, color: Colors.green),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Push notification will be sent to ALL USERS when you create this event!',
+                            style: TextStyle(color: Colors.green, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: 24),
                 _buildSubmitButton(),
               ],
@@ -212,18 +282,21 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     return GestureDetector(
       onTap: _selectDate,
       child: GlassCard(
-        child: Row(
-          children: [
-            const Icon(Icons.calendar_today, color: Colors.white54),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Date: ${DateFormat('EEEE, MMM d, yyyy').format(_selectedDate)}',
-                style: const TextStyle(color: Colors.white),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const Icon(Icons.calendar_today, color: Colors.white54),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Date: ${DateFormat('EEEE, MMM d, yyyy').format(_selectedDate)}',
+                  style: const TextStyle(color: Colors.white),
+                ),
               ),
-            ),
-            const Icon(Icons.arrow_drop_down, color: Colors.white54),
-          ],
+              const Icon(Icons.arrow_drop_down, color: Colors.white54),
+            ],
+          ),
         ),
       ),
     );
@@ -236,17 +309,21 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           child: GestureDetector(
             onTap: () => _selectTime(true),
             child: GlassCard(
-              child: Row(
-                children: [
-                  const Icon(Icons.access_time, color: Colors.white54),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Start: ${_formatTime(_startTime)}',
-                      style: const TextStyle(color: Colors.white),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.access_time, color: Colors.white54),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Start: ${_formatTime(_startTime)}',
+                        style: const TextStyle(color: Colors.white),
+                      ),
                     ),
-                  ),
-                ],
+                    const Icon(Icons.arrow_drop_down, color: Colors.white54),
+                  ],
+                ),
               ),
             ),
           ),
@@ -256,17 +333,21 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           child: GestureDetector(
             onTap: () => _selectTime(false),
             child: GlassCard(
-              child: Row(
-                children: [
-                  const Icon(Icons.access_time, color: Colors.white54),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'End: ${_formatTime(_endTime)}',
-                      style: const TextStyle(color: Colors.white),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.access_time, color: Colors.white54),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'End: ${_formatTime(_endTime)}',
+                        style: const TextStyle(color: Colors.white),
+                      ),
                     ),
-                  ),
-                ],
+                    const Icon(Icons.arrow_drop_down, color: Colors.white54),
+                  ],
+                ),
               ),
             ),
           ),
@@ -291,7 +372,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
         ),
-        child: const Text('Create Event', style: TextStyle(fontSize: 16, color: Colors.white)),
+        child: _isSubmitting
+            ? const CircularProgressIndicator(color: Colors.white)
+            : const Text('Create Event', style: TextStyle(fontSize: 16, color: Colors.white)),
       ),
     );
   }
