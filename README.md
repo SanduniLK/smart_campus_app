@@ -188,6 +188,6 @@ This project is developed for academic purposes.
 ## 🙌 Acknowledgment
 
 Developed as part of **ICT4153 - Mobile Application Development**
-Faculty of Technology, University of Moratuwa
+Faculty of Technology, University of Ruhuna
 
 ---
