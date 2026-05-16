@@ -23,41 +23,41 @@ This project is developed for the **ICT4153 Mobile Application Development** mod
 
 ### 📅 Timetable Management
 - View and edit timetable
-- Organized schedule interface
+- Daily and weekly schedule view
 
 ### 🎉 Announcement System
 - View all announcements
-- Real-time updates interface
+- Real-time updates
 
 ### 🗺️ Campus Map
-- Interactive campus navigation
+- Interactive campus navigation system
 
 ### 👤 Profile Management
-- User profile viewing and updates
+- User profile view and updates
 
 ### 🔔 Notifications & QR System
 - QR code generation
-- Event verification system
+- QR-based verification system
 
 ### 🧑‍🏫 Dashboards
 - Student dashboard
 - Academic staff dashboard
-- Non-academic dashboard
+- Non-academic staff dashboard
 
 ---
 
 ## 🏗️ Architecture
 
 - Clean Architecture Pattern
-- Separation of UI, Logic, and Data layers
-- State management (Provider / Riverpod / Bloc)
+- Separation of UI, Business Logic, and Data layers
+- State Management (Provider / Riverpod / Bloc)
 
 ---
 
 ## ⚙️ Tech Stack
 
 - Flutter (Dart)
-- Firebase (Authentication / Backend - if used)
+- Firebase (Authentication / Backend if used)
 - REST APIs
 - SQLite (optional local storage)
 
@@ -65,47 +65,47 @@ This project is developed for the **ICT4153 Mobile Application Development** mod
 
 ## 📸 Screenshots
 
-### 🔐 Login & Authentication
-<img src="assets/login_page.jpeg" width="300"/>
-<img src="assets/role_Selection.jpeg" width="300"/>
-<img src="assets/emai_verify.jpeg" width="300"/>
-<img src="assets/studentReg.jpeg" width="300"/>
-<img src="assets/staff_reg.jpeg" width="300"/>
+### 🔐 Authentication
+<img src="./assets/screenshots/login_page.jpeg" width="300"/>
+<img src="./assets/screenshots/role_Selection.jpeg" width="300"/>
+<img src="./assets/screenshots/emai_verify.jpeg" width="300"/>
+<img src="./assets/screenshots/studentReg.jpeg" width="300"/>
+<img src="./assets/screenshots/staff_reg.jpeg" width="300"/>
 
 ---
 
 ### 📊 Dashboards
-<img src="assets/student_dasbord.jpeg" width="300"/>
-<img src="assets/acedemic_staff_dashboard.jpeg" width="300"/>
-<img src="assets/non_acedemic_dashbord.jpeg" width="300"/>
+<img src="./assets/screenshots/student_dasbord.jpeg" width="300"/>
+<img src="./assets/screenshots/acedemic_staff_dashboard.jpeg" width="300"/>
+<img src="./assets/screenshots/non_acedemic_dashbord.jpeg" width="300"/>
 
 ---
 
-### 📅 Timetable & Events
-<img src="assets/timetable.jpeg" width="300"/>
-<img src="assets/edit_timeTable.jpeg" width="300"/>
+### 📅 Timetable
+<img src="./assets/screenshots/timetable.jpeg" width="300"/>
+<img src="./assets/screenshots/edit_timeTable.jpeg" width="300"/>
 
 ---
 
 ### 📢 Announcements
-<img src="assets/announcement.jpeg" width="300"/>
-<img src="assets/All_announcement.jpeg" width="300"/>
+<img src="./assets/screenshots/announcement.jpeg" width="300"/>
+<img src="./assets/screenshots/All_announcement.jpeg" width="300"/>
 
 ---
 
 ### 🗺️ Map & QR
-<img src="assets/map.jpeg" width="300"/>
-<img src="assets/qr.jpeg" width="300"/>
+<img src="./assets/screenshots/map.jpeg" width="300"/>
+<img src="./assets/screenshots/qr.jpeg" width="300"/>
 
 ---
 
 ### 👤 Profile
-<img src="assets/profile.jpeg" width="300"/>
+<img src="./assets/screenshots/profile.jpeg" width="300"/>
 
 ---
 
 ### 🚀 Splash Screen
-<img src="assets/splash.jpeg" width="300"/>
+<img src="./assets/screenshots/splash.jpeg" width="300"/>
 
 ---
 
@@ -129,7 +129,7 @@ flutter run
 📌 Future Improvements
 AI-based campus assistant
 Offline mode support
-Push notifications system
+Push notification system
 Analytics dashboard
 📄 License
 
